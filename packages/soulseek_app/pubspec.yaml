@@ -1,0 +1,27 @@
+name: soulseek_app
+description: A modern mobile Soulseek client.
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  soulseek_protocol:
+    path: ../soulseek_protocol
+  flutter_riverpod: ^2.6.0
+  path_provider: ^2.1.0
+  connectivity_plus: ^6.1.0
+  flutter_animate: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

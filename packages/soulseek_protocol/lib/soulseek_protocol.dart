@@ -1,0 +1,13 @@
+library soulseek_protocol;
+
+export 'src/messages/codes.dart';
+export 'src/messages/buffer.dart';
+export 'src/messages/message.dart';
+export 'src/connection/socket_manager.dart';
+export 'src/connection/server_connection.dart';
+export 'src/connection/reconnection_manager.dart';
+export 'src/peer/peer_connection.dart';
+export 'src/peer/connection_race_handler.dart';
+export 'src/transfer/download_manager.dart';
+export 'src/obfuscation/handshake.dart';
+export 'src/soulseek_client.dart';
