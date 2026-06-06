@@ -20,8 +20,14 @@ jobs:
         with:
           sdk: 3.12
 
+      - name: Disable workspace resolution (Flutter not available)
+        run: sed -i 's/resolution: workspace/# resolution: workspace/' ../pubspec.yaml
+
       - name: Install dependencies
         run: dart pub get
+
+      - name: Restore workspace resolution
+        run: sed -i 's/# resolution: workspace/resolution: workspace/' ../pubspec.yaml
 
       - name: Analyze
         run: dart analyze
