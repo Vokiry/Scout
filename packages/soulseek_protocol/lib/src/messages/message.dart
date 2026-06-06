@@ -437,6 +437,106 @@ class UserInfoRequest implements PeerMessage {
   WriteBuffer serialize() => WriteBuffer();
 }
 
+class SharedFile {
+  final int code;
+  final String filename;
+  final int size;
+  final String extension;
+  final int attributeCount;
+  final int bitrate;
+  final int duration;
+  final int sampleRate;
+  final int? bitrateVbr;
+
+  SharedFile({
+    required this.code,
+    required this.filename,
+    required this.size,
+    required this.extension,
+    required this.attributeCount,
+    required this.bitrate,
+    required this.duration,
+    required this.sampleRate,
+    this.bitrateVbr,
+  });
+
+  static SharedFile parse(ReadBuffer buffer) {
+    final code = buffer.readInt32();
+    final filename = buffer.readString();
+    final size = buffer.readUint64();
+    final extension = buffer.readString();
+    final attributeCount = buffer.readInt32();
+
+    int bitrate = 0;
+    int duration = 0;
+    int sampleRate = 0;
+    int? bitrateVbr;
+
+    for (int i = 0; i < attributeCount; i++) {
+      final attrType = buffer.readInt32();
+      final attrValue = buffer.readInt32();
+      switch (attrType) {
+        case 0:
+          bitrate = attrValue;
+          break;
+        case 1:
+          duration = attrValue;
+          break;
+        case 2:
+          sampleRate = attrValue;
+          break;
+        case 3:
+          bitrateVbr = attrValue;
+          break;
+      }
+    }
+
+    return SharedFile(
+      code: code,
+      filename: filename,
+      size: size,
+      extension: extension,
+      attributeCount: attributeCount,
+      bitrate: bitrate,
+      duration: duration,
+      sampleRate: sampleRate,
+      bitrateVbr: bitrateVbr,
+    );
+  }
+}
+
+class SharedFolder {
+  final String path;
+  final List<SharedFile> files;
+
+  SharedFolder({required this.path, required this.files});
+
+  static SharedFolder parse(ReadBuffer buffer) {
+    final path = buffer.readString();
+    final fileCount = buffer.readInt32();
+    final files = <SharedFile>[];
+    for (int i = 0; i < fileCount; i++) {
+      files.add(SharedFile.parse(buffer));
+    }
+    return SharedFolder(path: path, files: files);
+  }
+}
+
+class FolderContentsReply {
+  final List<SharedFolder> folders;
+
+  FolderContentsReply(this.folders);
+
+  static FolderContentsReply parse(ReadBuffer buffer) {
+    final folderCount = buffer.readInt32();
+    final folders = <SharedFolder>[];
+    for (int i = 0; i < folderCount; i++) {
+      folders.add(SharedFolder.parse(buffer));
+    }
+    return FolderContentsReply(folders);
+  }
+}
+
 class TransferRequest implements PeerMessage {
   final int direction;
   final int fileCode;

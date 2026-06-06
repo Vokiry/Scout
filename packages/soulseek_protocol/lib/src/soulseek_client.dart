@@ -7,6 +7,7 @@ import 'messages/codes.dart';
 import 'messages/message.dart';
 import 'peer/peer_connection.dart';
 import 'services/auth_service.dart';
+import 'services/browse_service.dart';
 import 'services/chat_service.dart';
 import 'services/search_service.dart';
 import 'services/user_service.dart';
@@ -18,6 +19,7 @@ class SoulseekClient {
   final SearchService searchService;
   final ChatService chat;
   final UserService users;
+  final BrowseService browseService;
   final DownloadManager _downloadManager;
   final Map<String, PeerConnection> _activePeers = {};
 
@@ -27,11 +29,13 @@ class SoulseekClient {
     SearchService? searchService,
     ChatService? chat,
     UserService? users,
+    BrowseService? browseService,
   }) : _server = server ?? ServerConnection(),
        auth = auth ?? AuthService(server: server ?? ServerConnection()),
        searchService = searchService ?? SearchService(server: server ?? ServerConnection()),
        chat = chat ?? ChatService(server: server ?? ServerConnection()),
        users = users ?? UserService(server: server ?? ServerConnection()),
+       browseService = browseService ?? BrowseService(),
        _downloadManager = DownloadManager();
 
   Stream<ServerConnectionState> get connectionState => auth.connectionState;
@@ -140,10 +144,27 @@ class SoulseekClient {
     await _downloadManager.startDownload(download, connection);
   }
 
+  Future<FolderContentsReply> browseUser({
+    required String username,
+    required int ip,
+    required int port,
+    String directory = '',
+  }) async {
+    final connection = await connectToPeer(username, ip, port);
+    if (connection == null) {
+      throw Exception('Failed to connect to peer $username');
+    }
+    return browseService.browseUser(
+      connection: connection,
+      directory: directory,
+    );
+  }
+
   void dispose() {
     searchService.dispose();
     chat.dispose();
     users.dispose();
+    browseService.dispose();
     auth.dispose();
     _downloadManager.dispose();
     for (final peer in _activePeers.values) {

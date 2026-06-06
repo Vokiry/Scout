@@ -343,4 +343,113 @@ void main() {
       expect(r.readInt32(), equals(10000)); // fileSize
     });
   });
+
+  group('SharedFile', () {
+    test('parses file with attributes', () {
+      final w = WriteBuffer();
+      w.writeInt32(0); // code
+      w.writeString('song.flac');
+      w.writeUint64(BigInt.from(5000)); // size
+      w.writeString('flac');
+      w.writeInt32(3); // attributeCount
+      w.writeInt32(0); w.writeInt32(320); // bitrate
+      w.writeInt32(1); w.writeInt32(240); // duration
+      w.writeInt32(2); w.writeInt32(44100); // sampleRate
+
+      final file = SharedFile.parse(ReadBuffer(w.toBytes()));
+      expect(file.code, equals(0));
+      expect(file.filename, equals('song.flac'));
+      expect(file.size, equals(5000));
+      expect(file.extension, equals('flac'));
+      expect(file.bitrate, equals(320));
+      expect(file.duration, equals(240));
+      expect(file.sampleRate, equals(44100));
+      expect(file.bitrateVbr, isNull);
+    });
+
+    test('parses file with bitrateVbr attribute', () {
+      final w = WriteBuffer();
+      w.writeInt32(1);
+      w.writeString('track.mp3');
+      w.writeUint64(BigInt.from(3000));
+      w.writeString('mp3');
+      w.writeInt32(4);
+      w.writeInt32(0); w.writeInt32(256);
+      w.writeInt32(1); w.writeInt32(180);
+      w.writeInt32(2); w.writeInt32(44100);
+      w.writeInt32(3); w.writeInt32(1); // bitrateVbr
+
+      final file = SharedFile.parse(ReadBuffer(w.toBytes()));
+      expect(file.bitrateVbr, equals(1));
+    });
+  });
+
+  group('SharedFolder', () {
+    test('parses folder with files', () {
+      final w = WriteBuffer();
+      w.writeString('Music');
+      w.writeInt32(1); // fileCount
+
+      w.writeInt32(0);
+      w.writeString('song.flac');
+      w.writeUint64(BigInt.from(5000));
+      w.writeString('flac');
+      w.writeInt32(0); // no attributes
+
+      final folder = SharedFolder.parse(ReadBuffer(w.toBytes()));
+      expect(folder.path, equals('Music'));
+      expect(folder.files.length, equals(1));
+      expect(folder.files[0].filename, equals('song.flac'));
+    });
+  });
+
+  group('FolderContentsReply', () {
+    test('parses multiple folders', () {
+      final w = WriteBuffer();
+      w.writeInt32(2); // folderCount
+
+      w.writeString('Music');
+      w.writeInt32(1);
+      w.writeInt32(0);
+      w.writeString('a.flac');
+      w.writeUint64(BigInt.from(1000));
+      w.writeString('flac');
+      w.writeInt32(0);
+
+      w.writeString('Videos');
+      w.writeInt32(1);
+      w.writeInt32(1);
+      w.writeString('b.mp4');
+      w.writeUint64(BigInt.from(2000));
+      w.writeString('mp4');
+      w.writeInt32(0);
+
+      final reply = FolderContentsReply.parse(ReadBuffer(w.toBytes()));
+      expect(reply.folders.length, equals(2));
+      expect(reply.folders[0].path, equals('Music'));
+      expect(reply.folders[1].path, equals('Videos'));
+      expect(reply.folders[0].files[0].filename, equals('a.flac'));
+      expect(reply.folders[1].files[0].filename, equals('b.mp4'));
+    });
+
+    test('parses empty folders list', () {
+      final w = WriteBuffer();
+      w.writeInt32(0); // folderCount
+
+      final reply = FolderContentsReply.parse(ReadBuffer(w.toBytes()));
+      expect(reply.folders, isEmpty);
+    });
+
+    test('throws on malformed data', () {
+      final w = WriteBuffer();
+      w.writeInt32(999); // impossibly high folderCount
+      w.writeInt32(0);
+      w.writeInt32(0);
+
+      expect(
+        () => FolderContentsReply.parse(ReadBuffer(w.toBytes())),
+        throwsA(isA<BufferException>()),
+      );
+    });
+  });
 }
