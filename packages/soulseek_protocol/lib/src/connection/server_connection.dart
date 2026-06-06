@@ -8,8 +8,25 @@ import 'reconnection_manager.dart';
 import 'socket_manager.dart';
 
 enum ServerConnectionState { disconnected, connecting, connected, reconnecting }
-class ServerConnection {
-  late final SocketManager _socket;
+
+abstract class ServerTransport {
+  Stream<ServerConnectionState> get stateChanges;
+  Stream<SoulseekMessage> get messages;
+  Stream<ConnectionInfo> get connectionInfo;
+  ServerConnectionState get state;
+  bool get authenticated;
+  String? get username;
+  void init();
+  void setServer(String host, int port);
+  Future<void> connect(String username, String password);
+  Future<void> disconnect();
+  void sendMessage(SoulseekMessage message);
+  void sendRaw(int code, Uint8List payload);
+  void dispose();
+}
+
+class ServerConnection implements ServerTransport {
+  late final SocketTransport _socket;
   late final ReconnectionManager _reconnector;
 
   bool _authenticated = false;
@@ -26,13 +43,12 @@ class ServerConnection {
 
   ServerConnectionState _state = ServerConnectionState.disconnected;
 
-  ServerConnection() {
-    _socket = SocketManager();
+  ServerConnection({SocketTransport? socketTransport})
+      : _socket = socketTransport ?? SocketManager() {
     _reconnector = ReconnectionManager(_socket);
   }
   void initialize() {
-    _socket = SocketManager();
-    // _reconnector needs _socket, created in init
+    // _socket already set in constructor
   }
 
   Stream<ServerConnectionState> get stateChanges => _stateController.stream;

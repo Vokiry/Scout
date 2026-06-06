@@ -4,7 +4,7 @@ import 'dart:math';
 import 'socket_manager.dart';
 
 class ReconnectionManager {
-  final SocketManager _socketManager;
+  final SocketTransport _socketManager;
   final ReconnectionConfig _config;
 
   bool _isRunning = false;
@@ -16,7 +16,7 @@ class ReconnectionManager {
   final _stateController = StreamController<ReconnectionState>.broadcast();
 
   ReconnectionManager(this._socketManager, {ReconnectionConfig? config})
-      : _config = config ?? ReconnectionConfig();
+      : _config = config ?? const ReconnectionConfig();
 
   Stream<ReconnectionState> get stateChanges => _stateController.stream;
   ReconnectionState get state => ReconnectionState(
@@ -72,7 +72,7 @@ class ReconnectionManager {
   void _tryReconnect() {
     if (!_isRunning || _host == null || _port == null) return;
 
-    if (_attempt >= _config.maxAttempts) {
+    if (_config.maxAttempts >= 0 && _attempt >= _config.maxAttempts) {
       _isRunning = false;
       _emitState(isFinal: true);
       return;
@@ -86,11 +86,14 @@ class ReconnectionManager {
     final baseMs = _config.baseDelay.inMilliseconds;
     final maxMs = _config.maxDelay.inMilliseconds;
     final delay = min(baseMs * pow(_config.multiplier, _attempt - 1).toInt(), maxMs);
-    final jitter = Random().nextInt(_config.jitterMs) - (_config.jitterMs ~/ 2);
+    final jitter = _config.jitterMs > 0
+        ? Random().nextInt(_config.jitterMs) - (_config.jitterMs ~/ 2)
+        : 0;
     return Duration(milliseconds: delay + jitter);
   }
 
   void _emitState({String? errorMessage, bool isFinal = false}) {
+    if (_stateController.isClosed) return;
     _stateController.add(ReconnectionState(
       isRunning: _isRunning,
       attempt: _attempt,

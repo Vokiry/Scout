@@ -437,6 +437,106 @@ class UserInfoRequest implements PeerMessage {
   WriteBuffer serialize() => WriteBuffer();
 }
 
+class SharedFile {
+  final int code;
+  final String filename;
+  final int size;
+  final String extension;
+  final int attributeCount;
+  final int bitrate;
+  final int duration;
+  final int sampleRate;
+  final int? bitrateVbr;
+
+  SharedFile({
+    required this.code,
+    required this.filename,
+    required this.size,
+    required this.extension,
+    required this.attributeCount,
+    required this.bitrate,
+    required this.duration,
+    required this.sampleRate,
+    this.bitrateVbr,
+  });
+
+  static SharedFile parse(ReadBuffer buffer) {
+    final code = buffer.readInt32();
+    final filename = buffer.readString();
+    final size = buffer.readUint64();
+    final extension = buffer.readString();
+    final attributeCount = buffer.readInt32();
+
+    int bitrate = 0;
+    int duration = 0;
+    int sampleRate = 0;
+    int? bitrateVbr;
+
+    for (int i = 0; i < attributeCount; i++) {
+      final attrType = buffer.readInt32();
+      final attrValue = buffer.readInt32();
+      switch (attrType) {
+        case 0:
+          bitrate = attrValue;
+          break;
+        case 1:
+          duration = attrValue;
+          break;
+        case 2:
+          sampleRate = attrValue;
+          break;
+        case 3:
+          bitrateVbr = attrValue;
+          break;
+      }
+    }
+
+    return SharedFile(
+      code: code,
+      filename: filename,
+      size: size,
+      extension: extension,
+      attributeCount: attributeCount,
+      bitrate: bitrate,
+      duration: duration,
+      sampleRate: sampleRate,
+      bitrateVbr: bitrateVbr,
+    );
+  }
+}
+
+class SharedFolder {
+  final String path;
+  final List<SharedFile> files;
+
+  SharedFolder({required this.path, required this.files});
+
+  static SharedFolder parse(ReadBuffer buffer) {
+    final path = buffer.readString();
+    final fileCount = buffer.readInt32();
+    final files = <SharedFile>[];
+    for (int i = 0; i < fileCount; i++) {
+      files.add(SharedFile.parse(buffer));
+    }
+    return SharedFolder(path: path, files: files);
+  }
+}
+
+class FolderContentsReply {
+  final List<SharedFolder> folders;
+
+  FolderContentsReply(this.folders);
+
+  static FolderContentsReply parse(ReadBuffer buffer) {
+    final folderCount = buffer.readInt32();
+    final folders = <SharedFolder>[];
+    for (int i = 0; i < folderCount; i++) {
+      folders.add(SharedFolder.parse(buffer));
+    }
+    return FolderContentsReply(folders);
+  }
+}
+
 class TransferRequest implements PeerMessage {
   final int direction;
   final int fileCode;
@@ -460,6 +560,281 @@ class TransferRequest implements PeerMessage {
     w.writeInt32(fileCode);
     w.writeString(filename);
     w.writeInt32(fileSize);
+    return w;
+  }
+}
+
+class WishlistSearchRequest implements ServerMessage {
+  final int ticket;
+  final String query;
+
+  WishlistSearchRequest({required this.ticket, required this.query});
+
+  @override
+  int get code => 67;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeInt32(ticket);
+    w.writeString(query);
+    return w;
+  }
+}
+
+class WishlistInclusion implements ServerMessage {
+  final bool add;
+  final String phrase;
+
+  WishlistInclusion({required this.add, required this.phrase});
+
+  @override
+  int get code => 69;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeInt32(add ? 1 : 0);
+    w.writeString(phrase);
+    return w;
+  }
+}
+
+class WishlistReply {
+  final String username;
+  final int ticket;
+  final int freeUploadSlots;
+  final int uploadSpeed;
+  final int queueLength;
+  final List<SearchResultFile> files;
+
+  WishlistReply({
+    required this.username,
+    required this.ticket,
+    required this.freeUploadSlots,
+    required this.uploadSpeed,
+    required this.queueLength,
+    required this.files,
+  });
+
+  static WishlistReply parse(ReadBuffer buffer) {
+    final username = buffer.readString();
+    final ticket = buffer.readInt32();
+    final freeUploadSlots = buffer.readInt32();
+    final uploadSpeed = buffer.readInt32();
+    final queueLength = buffer.readInt32();
+    final fileCount = buffer.readInt32();
+
+    final files = <SearchResultFile>[];
+    for (int i = 0; i < fileCount; i++) {
+      files.add(SearchResultFile.parse(buffer));
+    }
+
+    return WishlistReply(
+      username: username,
+      ticket: ticket,
+      freeUploadSlots: freeUploadSlots,
+      uploadSpeed: uploadSpeed,
+      queueLength: queueLength,
+      files: files,
+    );
+  }
+}
+
+class JoinRoom implements ServerMessage {
+  final String roomName;
+
+  JoinRoom(this.roomName);
+
+  @override
+  int get code => 43;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    return w;
+  }
+}
+
+class LeaveRoom implements ServerMessage {
+  final String roomName;
+
+  LeaveRoom(this.roomName);
+
+  @override
+  int get code => 44;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    return w;
+  }
+}
+
+class RoomMessage {
+  final String roomName;
+  final String username;
+  final String message;
+
+  RoomMessage({
+    required this.roomName,
+    required this.username,
+    required this.message,
+  });
+
+  static RoomMessage parse(ReadBuffer buffer) {
+    final roomName = buffer.readString();
+    final username = buffer.readString();
+    final message = buffer.readString();
+    return RoomMessage(roomName: roomName, username: username, message: message);
+  }
+
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    w.writeString(message);
+    return w;
+  }
+}
+
+class SendRoomMessage implements ServerMessage {
+  final String roomName;
+  final String message;
+
+  SendRoomMessage({required this.roomName, required this.message});
+
+  @override
+  int get code => 47;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    w.writeString(message);
+    return w;
+  }
+}
+
+class UserJoinedRoom {
+  final String roomName;
+  final String username;
+  final int freeUploadSlots;
+  final int uploadSpeed;
+  final int filesCount;
+  final int directoryCount;
+
+  UserJoinedRoom({
+    required this.roomName,
+    required this.username,
+    required this.freeUploadSlots,
+    required this.uploadSpeed,
+    required this.filesCount,
+    required this.directoryCount,
+  });
+
+  static UserJoinedRoom parse(ReadBuffer buffer) {
+    final roomName = buffer.readString();
+    final username = buffer.readString();
+    final freeUploadSlots = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    final uploadSpeed = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    final filesCount = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    final directoryCount = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    return UserJoinedRoom(
+      roomName: roomName,
+      username: username,
+      freeUploadSlots: freeUploadSlots,
+      uploadSpeed: uploadSpeed,
+      filesCount: filesCount,
+      directoryCount: directoryCount,
+    );
+  }
+}
+
+class UserLeftRoom {
+  final String roomName;
+  final String username;
+
+  UserLeftRoom({required this.roomName, required this.username});
+
+  static UserLeftRoom parse(ReadBuffer buffer) {
+    final roomName = buffer.readString();
+    final username = buffer.readString();
+    return UserLeftRoom(roomName: roomName, username: username);
+  }
+}
+
+class RoomListEntry {
+  final String name;
+  final int userCount;
+
+  RoomListEntry({required this.name, required this.userCount});
+}
+
+class RoomList {
+  final List<RoomListEntry> rooms;
+
+  RoomList(this.rooms);
+
+  static RoomList parse(ReadBuffer buffer) {
+    final count = buffer.readInt32();
+    final rooms = <RoomListEntry>[];
+    for (int i = 0; i < count; i++) {
+      final name = buffer.readString();
+      final userCount = buffer.readInt32();
+      rooms.add(RoomListEntry(name: name, userCount: userCount));
+    }
+    return RoomList(rooms);
+  }
+}
+
+class PrivateRoomUsers implements ServerMessage {
+  final String roomName;
+
+  PrivateRoomUsers(this.roomName);
+
+  @override
+  int get code => 135;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    return w;
+  }
+}
+
+class RoomTickerSet implements ServerMessage {
+  final String roomName;
+  final String ticker;
+
+  RoomTickerSet({required this.roomName, required this.ticker});
+
+  @override
+  int get code => 150;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    w.writeString(ticker);
+    return w;
+  }
+}
+
+class RoomTickerRemove implements ServerMessage {
+  final String roomName;
+
+  RoomTickerRemove(this.roomName);
+
+  @override
+  int get code => 151;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
     return w;
   }
 }

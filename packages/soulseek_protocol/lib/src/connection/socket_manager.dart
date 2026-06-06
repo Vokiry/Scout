@@ -34,7 +34,18 @@ class MessageReceived {
   MessageReceived(this.message);
 }
 
-class SocketManager {
+abstract class SocketTransport {
+  SocketState get state;
+  Stream<SoulseekMessage> get messages;
+  Stream<SocketStateChanged> get stateChanges;
+  Future<void> connect(String host, int port, {Duration timeout});
+  Future<void> disconnect();
+  void sendMessage(SoulseekMessage message);
+  void sendRaw(int code, Uint8List payload);
+  void dispose();
+}
+
+class SocketManager implements SocketTransport {
   Socket? _socket;
   SocketState _state = SocketState.disconnected;
   StreamSubscription? _dataSubscription;
@@ -48,16 +59,21 @@ class SocketManager {
   static const int _headerSize = 8;
   Timer? _connectTimeout;
 
+  @override
   SocketState get state => _state;
+  @override
   Stream<SoulseekMessage> get messages => _messageController.stream;
+  @override
   Stream<SocketStateChanged> get stateChanges => _stateController.stream;
 
+  @override
   void dispose() {
     _messageController.close();
     _stateController.close();
     _cleanup();
   }
 
+  @override
   Future<void> connect(String host, int port, {Duration timeout = const Duration(seconds: 10)}) async {
     if (_state == SocketState.connecting || _state == SocketState.connected) {
       await disconnect();
@@ -97,6 +113,18 @@ class SocketManager {
     }
   }
 
+  void accept(Socket socket) {
+    _socket = socket;
+    _socket!.setOption(SocketOption.tcpNoDelay, true);
+    _dataSubscription = _socket!.listen(
+      _onData,
+      onError: (error) => _onError(error, StackTrace.current),
+      onDone: _onDone,
+      cancelOnError: false,
+    );
+    _setState(SocketState.connected);
+  }
+
   Future<List<InternetAddress>> _resolveHost(String host) async {
     try {
       final results = await InternetAddress.lookup(host, type: InternetAddressType.any);
@@ -112,6 +140,7 @@ class SocketManager {
     }
   }
 
+  @override
   Future<void> disconnect() async {
     _connectTimeout?.cancel();
     _connectTimeout = null;
@@ -127,10 +156,12 @@ class SocketManager {
     _setState(SocketState.disconnected);
   }
 
+  @override
   void sendMessage(SoulseekMessage message) {
     sendRaw(message.code, message.payload);
   }
 
+  @override
   void sendRaw(int code, Uint8List payload) {
     if (_socket == null || _state != SocketState.connected) {
       throw SocketManagerException('Not connected');

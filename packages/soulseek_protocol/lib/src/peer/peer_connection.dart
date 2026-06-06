@@ -8,7 +8,14 @@ enum PeerConnectionState { disconnected, connecting, connected, obfuscating }
 
 enum PeerConnectionType { incoming, outgoing }
 
-class PeerConnection {
+abstract class TransferConnection {
+  String get username;
+  Stream<SoulseekMessage> get messages;
+  void sendMessage(SoulseekMessage message);
+  void sendRaw(int code, Uint8List payload);
+}
+
+class PeerConnection implements TransferConnection {
   final String username;
   final int ip;
   final int port;
@@ -26,8 +33,8 @@ class PeerConnection {
     required this.ip,
     required this.port,
     required this.type,
-    required SocketManager socketManager,
-  }) : _socketManager = socketManager;
+    required this._socketManager,
+  });
 
   PeerConnectionState get state => _state;
   Stream<PeerConnectionState> get stateChanges => _stateController.stream;

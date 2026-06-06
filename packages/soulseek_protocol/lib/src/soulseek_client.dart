@@ -6,59 +6,89 @@ import 'messages/buffer.dart';
 import 'messages/codes.dart';
 import 'messages/message.dart';
 import 'peer/peer_connection.dart';
+import 'peer/peer_listener.dart';
+import 'services/auth_service.dart';
+import 'services/browse_service.dart';
+import 'services/chat_service.dart';
+import 'services/search_service.dart';
+import 'services/user_service.dart';
+import 'services/room_chat_service.dart';
+import 'services/wishlist_service.dart';
 import 'transfer/download_manager.dart';
+import 'transfer/upload_manager.dart';
 
-/// High-level Soulseek client.
-///
-/// Provides a clean API for authentication, searching, downloading,
-/// and managing peer connections. Runs protocol operations on a
-/// dedicated isolate to prevent UI jank.
 class SoulseekClient {
-  final ServerConnection _server;
+  final ServerTransport _server;
+  final AuthService auth;
+  final SearchService searchService;
+  final ChatService chat;
+  final UserService users;
+  final BrowseService browseService;
+  final WishlistService wishlistService;
+  final RoomChatService roomChat;
   final DownloadManager _downloadManager;
+  final UploadManager uploadManager;
+  late final PeerListener peerListener;
   final Map<String, PeerConnection> _activePeers = {};
-  int _searchTicket = 1;
 
-  StreamSubscription? _serverMessageSub;
+  SoulseekClient({
+    ServerTransport? server,
+    AuthService? auth,
+    SearchService? searchService,
+    ChatService? chat,
+    UserService? users,
+    BrowseService? browseService,
+    WishlistService? wishlistService,
+    RoomChatService? roomChat,
+  }) : _server = server ?? ServerConnection(),
+       auth = auth ?? AuthService(server: server ?? ServerConnection()),
+       searchService = searchService ?? SearchService(server: server ?? ServerConnection()),
+       chat = chat ?? ChatService(server: server ?? ServerConnection()),
+       users = users ?? UserService(server: server ?? ServerConnection()),
+       browseService = browseService ?? BrowseService(),
+       wishlistService = wishlistService ?? WishlistService(server: server ?? ServerConnection()),
+       roomChat = roomChat ?? RoomChatService(server: server ?? ServerConnection()),
+       _downloadManager = DownloadManager(),
+       uploadManager = UploadManager() {
+    peerListener = PeerListener(uploadManager: uploadManager);
+  }
 
-  final _searchResultsController = StreamController<SearchResult>.broadcast();
-  final _privateMessageController = StreamController<PrivateMessage>.broadcast();
-  final _userStatusController = StreamController<UserStatus>.broadcast();
-
-  SoulseekClient()
-      : _server = ServerConnection(),
-        _downloadManager = DownloadManager();
-
-  // --- Streams ---
-  Stream<ServerConnectionState> get connectionState => _server.stateChanges;
-  Stream<SearchResult> get searchResults => _searchResultsController.stream;
-  Stream<PrivateMessage> get privateMessages => _privateMessageController.stream;
-  Stream<UserStatus> get userStatus => _userStatusController.stream;
+  Stream<ServerConnectionState> get connectionState => auth.connectionState;
+  Stream<SearchResult> get searchResults => searchService.results;
+  Stream<PrivateMessage> get privateMessages => chat.privateMessages;
+  Stream<UserStatus> get userStatus => users.userStatus;
   Stream<Map<String, DownloadProgress>> get downloadProgress => _downloadManager.allProgress;
-  Stream<ConnectionInfo> get connectionInfo => _server.connectionInfo;
-  bool get authenticated => _server.authenticated;
-  String? get username => _server.username;
+  Stream<WishlistReply> get wishlistResults => wishlistService.wishlistResults;
+  Stream<RoomMessage> get roomMessages => roomChat.roomMessages;
+  Stream<UserJoinedRoom> get roomUserJoined => roomChat.userJoined;
+  Stream<UserLeftRoom> get roomUserLeft => roomChat.userLeft;
+  Stream<RoomList> get roomList => roomChat.roomList;
+  Stream<ConnectionInfo> get connectionInfo => auth.connectionInfo;
+  bool get authenticated => auth.authenticated;
+  String? get username => auth.username;
   DownloadManager get downloadManager => _downloadManager;
 
-  // --- Lifecycle ---
   void init() {
-    _server.init();
-    _serverMessageSub = _server.messages.listen(_onServerMessage);
+    auth.init();
+    searchService.init();
+    chat.init();
+    users.init();
+    wishlistService.init();
+    roomChat.init();
   }
 
   Future<void> connect(String username, String password) async {
-    await _server.connect(username, password);
+    await auth.connect(username, password);
   }
 
   Future<void> disconnect() async {
-    await _server.disconnect();
+    await auth.disconnect();
     for (final peer in _activePeers.values) {
       await peer.disconnect();
     }
     _activePeers.clear();
   }
 
-  // --- Server Interaction ---
   void setListenPort(int port) {
     _server.sendMessage(SoulseekMessage(
       ServerCode.setListenPort,
@@ -66,37 +96,23 @@ class SoulseekClient {
     ));
   }
 
-  void search(String query) {
-    final ticket = _searchTicket++;
-    _server.sendMessage(SoulseekMessage(
-      ServerCode.searchRequest,
-      SearchRequest(query: query, ticket: ticket).serialize().toBytes(),
-    ));
+  Future<void> startListening(int port) async {
+    await peerListener.start(port);
+    setListenPort(port);
   }
 
-  void addUser(String username) {
-    _server.sendMessage(SoulseekMessage(
-      ServerCode.addUser,
-      AddUser(username).serialize().toBytes(),
-    ));
+  Future<void> stopListening() async {
+    await peerListener.stop();
   }
 
-  void getPeerAddress(String username) {
-    _server.sendMessage(SoulseekMessage(
-      ServerCode.getPeerAddress,
-      GetPeerAddress(username).serialize().toBytes(),
-    ));
-  }
+  int search(String query) => searchService.search(query);
+
+  void addUser(String username) => users.addUser(username);
+
+  void getPeerAddress(String username) => users.getPeerAddress(username);
 
   void sendPrivateMessage(String username, String message) {
-    _server.sendMessage(SoulseekMessage(
-      ServerCode.privateMessage,
-      PrivateMessage(
-        username: username,
-        message: message,
-        timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      ).serialize().toBytes(),
-    ));
+    chat.sendPrivateMessage(username, message);
   }
 
   void checkDownloadQueue(List<String> usernames) {
@@ -106,10 +122,9 @@ class SoulseekClient {
     ));
   }
 
-  // --- Peer Connection ---
   Future<PeerConnection?> connectToPeer(String username, int ip, int port) async {
     if (_activePeers.containsKey(username)) {
-      _activePeers[username]!.disconnect();
+      await _activePeers[username]!.disconnect();
       _activePeers.remove(username);
     }
 
@@ -127,7 +142,6 @@ class SoulseekClient {
     return peer;
   }
 
-  // --- Downloads ---
   void enqueueDownload({
     required String filename,
     required int size,
@@ -161,99 +175,58 @@ class SoulseekClient {
     await _downloadManager.startDownload(download, connection);
   }
 
-  // --- Message Handlers ---
-  void _onServerMessage(SoulseekMessage message) {
-    switch (message.code) {
-      case ServerCode.searchResponse:
-      case ServerCode.userSearchResponse:
-        _handleSearchResponse(message);
-        break;
-      case ServerCode.privateMessage:
-        _handlePrivateMessage(message);
-        break;
-      case ServerCode.statusResponse:
-        _handleStatusResponse(message);
-        break;
-      case ServerCode.roomMessage:
-      case ServerCode.userJoinedRoom:
-      case ServerCode.userLeftRoom:
-        // Room events - handled by higher layer
-        break;
+  Future<FolderContentsReply> browseUser({
+    required String username,
+    required int ip,
+    required int port,
+    String directory = '',
+  }) async {
+    final connection = await connectToPeer(username, ip, port);
+    if (connection == null) {
+      throw Exception('Failed to connect to peer $username');
     }
+    return browseService.browseUser(
+      connection: connection,
+      directory: directory,
+    );
   }
 
-  void _handleSearchResponse(SoulseekMessage message) {
-    try {
-      final buffer = ReadBuffer(message.payload);
-      SearchResponseData response;
-      try {
-        response = SearchResponseData.parse(buffer);
-      } catch (_) {
-        // Fall back to old format
-        response = SearchResponseData.parseOld(ReadBuffer(message.payload));
-      }
+  int wishlistSearch(String query) => wishlistService.wishlistSearch(query);
 
-      _searchResultsController.add(SearchResult(
-        username: response.username,
-        ticket: response.ticket,
-        freeUploadSlots: response.freeUploadSlots,
-        uploadSpeed: response.uploadSpeed,
-        queueLength: response.queueLength,
-        files: response.files,
-      ));
-    } catch (e) {
-      // Skip malformed search responses
-    }
+  void addWishlistItem(String phrase) => wishlistService.addWishlistItem(phrase);
+
+  void removeWishlistItem(String phrase) => wishlistService.removeWishlistItem(phrase);
+
+  void joinRoom(String roomName) => roomChat.joinRoom(roomName);
+
+  void leaveRoom(String roomName) => roomChat.leaveRoom(roomName);
+
+  void sendRoomMessage(String roomName, String message) {
+    roomChat.sendMessage(roomName, message);
   }
 
-  void _handlePrivateMessage(SoulseekMessage message) {
-    try {
-      final buffer = ReadBuffer(message.payload);
-      final pm = PrivateMessage.parse(buffer);
-      _privateMessageController.add(pm);
-    } catch (e) {
-      // Skip malformed messages
-    }
+  void requestRoomList() => roomChat.requestRoomList();
+
+  void setRoomTicker(String roomName, String ticker) {
+    roomChat.setRoomTicker(roomName, ticker);
   }
 
-  void _handleStatusResponse(SoulseekMessage message) {
-    try {
-      final buffer = ReadBuffer(message.payload);
-      final status = UserStatus.parse(buffer);
-      _userStatusController.add(status);
-    } catch (e) {
-      // Skip malformed status
-    }
-  }
+  void removeRoomTicker(String roomName) => roomChat.removeRoomTicker(roomName);
 
   void dispose() {
-    _serverMessageSub?.cancel();
-    _server.dispose();
+    searchService.dispose();
+    chat.dispose();
+    users.dispose();
+    browseService.dispose();
+    wishlistService.dispose();
+    roomChat.dispose();
+    auth.dispose();
+    peerListener.dispose();
     _downloadManager.dispose();
-    _searchResultsController.close();
-    _privateMessageController.close();
-    _userStatusController.close();
+    uploadManager.dispose();
     for (final peer in _activePeers.values) {
       peer.dispose();
     }
     _activePeers.clear();
   }
-}
-
-class SearchResult {
-  final String username;
-  final int ticket;
-  final int freeUploadSlots;
-  final int uploadSpeed;
-  final int queueLength;
-  final List<SearchResultFile> files;
-
-  const SearchResult({
-    required this.username,
-    required this.ticket,
-    required this.freeUploadSlots,
-    required this.uploadSpeed,
-    required this.queueLength,
-    required this.files,
-  });
 }

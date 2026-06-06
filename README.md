@@ -7,10 +7,15 @@ Built with Flutter for cross-platform support (Android, iOS, Linux) with a focus
 ## Features
 
 - **Music Search** — search across thousands of users with real-time results, deduplication, and grouping by user
-- **Smart Downloads** — segmented downloads with resume support, queue management, and waveform progress indicators
-- **User Browsing** — explore shared files from other users with an expandable folder tree
-- **Chat** — private messages and public chat rooms
-- **Resilient Networking** — automatic reconnection with exponential backoff, connection race condition handling, IPv4/IPv6 fallback
+- **Smart Downloads** — segmented downloads with concurrent limits (configurable), retry logic, queue management, and waveform progress indicators
+- **Upload Management** — incoming transfer request handling with accept/deny callbacks, file streaming in 1MB chunks, upload progress tracking, and concurrent upload limits
+- **User Browsing** — explore shared files from other users with a request/response pattern over peer connections and parsed folder tree
+- **Chat** — private messages and public chat rooms (join/leave rooms, room messages, user join/leave events, room list, room tickers)
+- **Wishlist Searches** — persistent wishlist queries with add/remove items and streaming match results
+- **Distributed Network** — parent/child relay for distributed search coverage with state machine and configurable branch limit
+- **Resilient Networking** — automatic reconnection with exponential backoff, connection race condition handling, IPv4/IPv6 fallback, obfuscated handshake (Pi + XOR)
+- **Service Layer Architecture** — extracted AuthService, SearchService, ChatService, UserService, BrowseService, WishlistService, RoomChatService from the monolithic client for testability
+- **CI/CD** — GitHub Actions pipeline for Dart 3.12 static analysis and test suite on push/PR to main
 - **Material Design 3** with custom visual flair — squircle cards, animated transitions, gradient placeholders
 
 ## Architecture
@@ -18,12 +23,14 @@ Built with Flutter for cross-platform support (Android, iOS, Linux) with a focus
 ```
 soulseek-flutter/
 ├── packages/
-│   ├── soulseek_protocol/     # Pure Dart — Soulseek protocol
+│   ├── soulseek_protocol/     # Pure Dart (268+ tests) — Soulseek protocol
 │   │   ├── lib/src/
 │   │   │   ├── messages/      # Binary serialization/deserialization
 │   │   │   ├── connection/    # TCP sockets, reconnect, keepalive
-│   │   │   ├── peer/          # Peer-to-peer connections, race handling
+│   │   │   ├── peer/          # Peer-to-peer connections, race handling, incoming listener
 │   │   │   ├── transfer/      # Download/upload management
+│   │   │   ├── services/      # Auth, Search, Chat, User, Browse, Wishlist, RoomChat
+│   │   │   ├── network/       # Distributed network (parent/child relay)
 │   │   │   └── obfuscation/   # Obfuscated handshake (Pi + XOR)
 │   │   └── test/
 │   └── soulseek_app/          # Flutter application
@@ -79,11 +86,14 @@ Scout implements the Soulseek protocol from scratch in pure Dart. The protocol u
 ```
 
 Key protocol features implemented:
-- Server login, search, private messaging, user status
+- Server login, search, private messaging, user status, room chat, wishlist
 - Peer-to-peer connections with obfuscated handshake (Pi shuffle + XOR)
 - Connection race detection and resolution
-- File transfer with segmented downloads and resume
-- Distributed network participation (parent/child relay)
+- File transfer with segmented downloads, resume, concurrent limits, and retry
+- Upload request handling with accept/deny, file streaming, progress tracking
+- User browsing with folder contents request/response parsing
+- Distributed network participation (parent/child relay, configurable branches)
+- Incoming peer connection listener and routing to upload manager
 
 ## License
 
