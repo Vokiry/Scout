@@ -9,3 +9,7 @@ export 'src/peer/connection_race_handler.dart';
 export 'src/transfer/download_manager.dart';
 export 'src/obfuscation/handshake.dart';
 export 'src/soulseek_client.dart';
+export 'src/services/auth_service.dart';
+export 'src/services/search_service.dart';
+export 'src/services/chat_service.dart';
+export 'src/services/user_service.dart';
