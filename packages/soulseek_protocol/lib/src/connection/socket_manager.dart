@@ -113,6 +113,18 @@ class SocketManager implements SocketTransport {
     }
   }
 
+  void accept(Socket socket) {
+    _socket = socket;
+    _socket!.setOption(SocketOption.tcpNoDelay, true);
+    _dataSubscription = _socket!.listen(
+      _onData,
+      onError: (error) => _onError(error, StackTrace.current),
+      onDone: _onDone,
+      cancelOnError: false,
+    );
+    _setState(SocketState.connected);
+  }
+
   Future<List<InternetAddress>> _resolveHost(String host) async {
     try {
       final results = await InternetAddress.lookup(host, type: InternetAddressType.any);

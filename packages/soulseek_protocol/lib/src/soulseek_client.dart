@@ -6,6 +6,7 @@ import 'messages/buffer.dart';
 import 'messages/codes.dart';
 import 'messages/message.dart';
 import 'peer/peer_connection.dart';
+import 'peer/peer_listener.dart';
 import 'services/auth_service.dart';
 import 'services/browse_service.dart';
 import 'services/chat_service.dart';
@@ -14,6 +15,7 @@ import 'services/user_service.dart';
 import 'services/room_chat_service.dart';
 import 'services/wishlist_service.dart';
 import 'transfer/download_manager.dart';
+import 'transfer/upload_manager.dart';
 
 class SoulseekClient {
   final ServerTransport _server;
@@ -25,6 +27,8 @@ class SoulseekClient {
   final WishlistService wishlistService;
   final RoomChatService roomChat;
   final DownloadManager _downloadManager;
+  final UploadManager uploadManager;
+  late final PeerListener peerListener;
   final Map<String, PeerConnection> _activePeers = {};
 
   SoulseekClient({
@@ -44,7 +48,10 @@ class SoulseekClient {
        browseService = browseService ?? BrowseService(),
        wishlistService = wishlistService ?? WishlistService(server: server ?? ServerConnection()),
        roomChat = roomChat ?? RoomChatService(server: server ?? ServerConnection()),
-       _downloadManager = DownloadManager();
+       _downloadManager = DownloadManager(),
+       uploadManager = UploadManager() {
+    peerListener = PeerListener(uploadManager: uploadManager);
+  }
 
   Stream<ServerConnectionState> get connectionState => auth.connectionState;
   Stream<SearchResult> get searchResults => searchService.results;
@@ -87,6 +94,15 @@ class SoulseekClient {
       ServerCode.setListenPort,
       SetListenPort(port).serialize().toBytes(),
     ));
+  }
+
+  Future<void> startListening(int port) async {
+    await peerListener.start(port);
+    setListenPort(port);
+  }
+
+  Future<void> stopListening() async {
+    await peerListener.stop();
   }
 
   int search(String query) => searchService.search(query);
@@ -205,7 +221,9 @@ class SoulseekClient {
     wishlistService.dispose();
     roomChat.dispose();
     auth.dispose();
+    peerListener.dispose();
     _downloadManager.dispose();
+    uploadManager.dispose();
     for (final peer in _activePeers.values) {
       peer.dispose();
     }
