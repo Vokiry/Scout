@@ -14,7 +14,7 @@ import 'transfer/download_manager.dart';
 /// and managing peer connections. Runs protocol operations on a
 /// dedicated isolate to prevent UI jank.
 class SoulseekClient {
-  final ServerConnection _server;
+  final ServerTransport _server;
   final DownloadManager _downloadManager;
   final Map<String, PeerConnection> _activePeers = {};
   int _searchTicket = 1;
@@ -25,8 +25,8 @@ class SoulseekClient {
   final _privateMessageController = StreamController<PrivateMessage>.broadcast();
   final _userStatusController = StreamController<UserStatus>.broadcast();
 
-  SoulseekClient()
-      : _server = ServerConnection(),
+  SoulseekClient({ServerTransport? server})
+      : _server = server ?? ServerConnection(),
         _downloadManager = DownloadManager();
 
   // --- Streams ---

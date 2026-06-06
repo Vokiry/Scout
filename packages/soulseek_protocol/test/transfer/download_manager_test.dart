@@ -1,0 +1,183 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:soulseek_protocol/soulseek_protocol.dart';
+import 'package:test/test.dart';
+
+/// Fake peer connection for testing downloads.
+class FakePeerConnection {
+  final _messagesController = StreamController<SoulseekMessage>.broadcast();
+  final List<SoulseekMessage> sentMessages = [];
+
+  Stream<SoulseekMessage> get messages => _messagesController.stream;
+
+  void sendMessage(SoulseekMessage message) {
+    sentMessages.add(message);
+  }
+
+  void injectTransferResponse() {
+    final w = WriteBuffer();
+    w.writeInt32(0); // success
+    _messagesController.add(SoulseekMessage(PeerCode.transferResponse, w.toBytes()));
+  }
+
+  void injectDataPayload(Uint8List data) {
+    _messagesController.add(SoulseekMessage(PeerCode.transferResponse, data));
+  }
+
+  void close() {
+    _messagesController.close();
+  }
+}
+
+void main() {
+  late DownloadManager manager;
+
+  setUp(() {
+    manager = DownloadManager();
+  });
+
+  tearDown(() {
+    manager.dispose();
+  });
+
+  group('addDownload', () {
+    test('adds download in queued state', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac',
+        size: 1000,
+        username: 'alice',
+        fileCode: 1,
+      );
+
+      expect(dl.state, equals(DownloadState.queued));
+      expect(dl.filename, equals('song.flac'));
+      expect(dl.size, equals(1000));
+      expect(dl.username, equals('alice'));
+      expect(dl.fileCode, equals(1));
+    });
+
+    test('addDownload with custom localPath', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac',
+        size: 1000,
+        username: 'alice',
+        fileCode: 1,
+        localPath: '/custom/path/song.flac',
+      );
+
+      expect(dl.localPath, equals('/custom/path/song.flac'));
+    });
+
+    test('addDownload without custom localPath uses default', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac',
+        size: 1000,
+        username: 'alice',
+        fileCode: 1,
+      );
+
+      expect(dl.localPath, isNotNull);
+      expect(dl.localPath!.endsWith('song.flac'), isTrue);
+    });
+  });
+
+  group('state transitions', () {
+    test('pause transitions from downloading to paused', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac', size: 1000, username: 'alice', fileCode: 1,
+      );
+      dl.state = DownloadState.downloading;
+      manager.pauseDownload(dl);
+      expect(dl.state, equals(DownloadState.paused));
+    });
+
+    test('pause does nothing when not downloading', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac', size: 1000, username: 'alice', fileCode: 1,
+      );
+      manager.pauseDownload(dl);
+      expect(dl.state, equals(DownloadState.queued));
+    });
+
+    test('resume transitions paused to queued', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac', size: 1000, username: 'alice', fileCode: 1,
+      );
+      dl.state = DownloadState.paused;
+      manager.resumeDownload(dl);
+      expect(dl.state, equals(DownloadState.queued));
+    });
+
+    test('cancel transitions to cancelled', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac', size: 1000, username: 'alice', fileCode: 1,
+      );
+      dl.state = DownloadState.downloading;
+      manager.cancelDownload(dl);
+      expect(dl.state, equals(DownloadState.cancelled));
+    });
+
+    test('remove removes from tracking', () {
+      final dl = manager.addDownload(
+        filename: 'song.flac', size: 1000, username: 'alice', fileCode: 1,
+      );
+      manager.removeDownload(dl);
+      // Progress should no longer include this download
+      final progress = <Map<String, DownloadProgress>>[];
+      manager.allProgress.listen((p) => progress.add(p));
+      expect(progress, isEmpty);
+    });
+  });
+
+  group('progress stream', () {
+    test('emits progress on add', () async {
+      final progresses = <Map<String, DownloadProgress>>[];
+      final sub = manager.allProgress.listen((p) => progresses.add(p));
+
+      manager.addDownload(
+        filename: 'song.flac', size: 1000, username: 'alice', fileCode: 1,
+      );
+
+      await Future.delayed(Duration.zero);
+      expect(progresses.length, greaterThan(0));
+      expect(progresses.last.keys, contains('alice:song.flac'));
+
+      await sub.cancel();
+    });
+
+    test('emits progress on cancel', () async {
+      final progresses = <Map<String, DownloadProgress>>[];
+      final sub = manager.allProgress.listen((p) => progresses.add(p));
+
+      final dl = manager.addDownload(
+        filename: 'song.flac', size: 1000, username: 'alice', fileCode: 1,
+      );
+      progresses.clear();
+
+      manager.cancelDownload(dl);
+
+      await Future.delayed(Duration.zero);
+      expect(progresses.last['alice:song.flac']!.state, equals(DownloadState.cancelled));
+
+      await sub.cancel();
+    });
+  });
+
+  group('DownloadProgress', () {
+    test('percentage is 0 for zero size', () {
+      final p = DownloadProgress(
+        filename: 'empty', downloadedBytes: 0, totalSize: 0, state: DownloadState.downloading,
+      );
+      expect(p.percentage, equals(0.0));
+    });
+
+    test('percentage is correct', () {
+      final p = DownloadProgress(
+        filename: 'file', downloadedBytes: 250, totalSize: 1000, state: DownloadState.downloading,
+      );
+      expect(p.percentage, equals(0.25));
+    });
+  });
+}
