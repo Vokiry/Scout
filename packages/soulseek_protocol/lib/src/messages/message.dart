@@ -640,3 +640,201 @@ class WishlistReply {
     );
   }
 }
+
+class JoinRoom implements ServerMessage {
+  final String roomName;
+
+  JoinRoom(this.roomName);
+
+  @override
+  int get code => 43;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    return w;
+  }
+}
+
+class LeaveRoom implements ServerMessage {
+  final String roomName;
+
+  LeaveRoom(this.roomName);
+
+  @override
+  int get code => 44;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    return w;
+  }
+}
+
+class RoomMessage {
+  final String roomName;
+  final String username;
+  final String message;
+
+  RoomMessage({
+    required this.roomName,
+    required this.username,
+    required this.message,
+  });
+
+  static RoomMessage parse(ReadBuffer buffer) {
+    final roomName = buffer.readString();
+    final username = buffer.readString();
+    final message = buffer.readString();
+    return RoomMessage(roomName: roomName, username: username, message: message);
+  }
+
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    w.writeString(message);
+    return w;
+  }
+}
+
+class SendRoomMessage implements ServerMessage {
+  final String roomName;
+  final String message;
+
+  SendRoomMessage({required this.roomName, required this.message});
+
+  @override
+  int get code => 47;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    w.writeString(message);
+    return w;
+  }
+}
+
+class UserJoinedRoom {
+  final String roomName;
+  final String username;
+  final int freeUploadSlots;
+  final int uploadSpeed;
+  final int filesCount;
+  final int directoryCount;
+
+  UserJoinedRoom({
+    required this.roomName,
+    required this.username,
+    required this.freeUploadSlots,
+    required this.uploadSpeed,
+    required this.filesCount,
+    required this.directoryCount,
+  });
+
+  static UserJoinedRoom parse(ReadBuffer buffer) {
+    final roomName = buffer.readString();
+    final username = buffer.readString();
+    final freeUploadSlots = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    final uploadSpeed = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    final filesCount = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    final directoryCount = buffer.remaining >= 4 ? buffer.readInt32() : 0;
+    return UserJoinedRoom(
+      roomName: roomName,
+      username: username,
+      freeUploadSlots: freeUploadSlots,
+      uploadSpeed: uploadSpeed,
+      filesCount: filesCount,
+      directoryCount: directoryCount,
+    );
+  }
+}
+
+class UserLeftRoom {
+  final String roomName;
+  final String username;
+
+  UserLeftRoom({required this.roomName, required this.username});
+
+  static UserLeftRoom parse(ReadBuffer buffer) {
+    final roomName = buffer.readString();
+    final username = buffer.readString();
+    return UserLeftRoom(roomName: roomName, username: username);
+  }
+}
+
+class RoomListEntry {
+  final String name;
+  final int userCount;
+
+  RoomListEntry({required this.name, required this.userCount});
+}
+
+class RoomList {
+  final List<RoomListEntry> rooms;
+
+  RoomList(this.rooms);
+
+  static RoomList parse(ReadBuffer buffer) {
+    final count = buffer.readInt32();
+    final rooms = <RoomListEntry>[];
+    for (int i = 0; i < count; i++) {
+      final name = buffer.readString();
+      final userCount = buffer.readInt32();
+      rooms.add(RoomListEntry(name: name, userCount: userCount));
+    }
+    return RoomList(rooms);
+  }
+}
+
+class PrivateRoomUsers implements ServerMessage {
+  final String roomName;
+
+  PrivateRoomUsers(this.roomName);
+
+  @override
+  int get code => 135;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    return w;
+  }
+}
+
+class RoomTickerSet implements ServerMessage {
+  final String roomName;
+  final String ticker;
+
+  RoomTickerSet({required this.roomName, required this.ticker});
+
+  @override
+  int get code => 150;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    w.writeString(ticker);
+    return w;
+  }
+}
+
+class RoomTickerRemove implements ServerMessage {
+  final String roomName;
+
+  RoomTickerRemove(this.roomName);
+
+  @override
+  int get code => 151;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeString(roomName);
+    return w;
+  }
+}

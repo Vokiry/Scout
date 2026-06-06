@@ -14,6 +14,7 @@ export 'src/soulseek_client.dart';
 export 'src/services/auth_service.dart';
 export 'src/services/browse_service.dart';
 export 'src/services/chat_service.dart';
+export 'src/services/room_chat_service.dart';
 export 'src/services/search_service.dart';
 export 'src/services/user_service.dart';
 export 'src/services/wishlist_service.dart';

@@ -511,4 +511,111 @@ void main() {
       );
     });
   });
+
+  group('JoinRoom', () {
+    test('serializes room name', () {
+      final msg = JoinRoom('Room1');
+      expect(msg.code, equals(43));
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readString(), equals('Room1'));
+    });
+  });
+
+  group('LeaveRoom', () {
+    test('serializes room name', () {
+      final msg = LeaveRoom('Room1');
+      expect(msg.code, equals(44));
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readString(), equals('Room1'));
+    });
+  });
+
+  group('SendRoomMessage', () {
+    test('serializes room name and message', () {
+      final msg = SendRoomMessage(roomName: 'Room1', message: 'hello');
+      expect(msg.code, equals(47));
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readString(), equals('Room1'));
+      expect(r.readString(), equals('hello'));
+    });
+  });
+
+  group('RoomMessage', () {
+    test('parses incoming room message', () {
+      final w = WriteBuffer();
+      w.writeString('Room1');
+      w.writeString('alice');
+      w.writeString('hello');
+      final msg = RoomMessage.parse(ReadBuffer(w.toBytes()));
+      expect(msg.roomName, equals('Room1'));
+      expect(msg.username, equals('alice'));
+      expect(msg.message, equals('hello'));
+    });
+  });
+
+  group('UserJoinedRoom', () {
+    test('parses user joined event', () {
+      final w = WriteBuffer();
+      w.writeString('Room1');
+      w.writeString('alice');
+      w.writeInt32(3);
+      w.writeInt32(100000);
+      w.writeInt32(500);
+      w.writeInt32(10);
+      final joined = UserJoinedRoom.parse(ReadBuffer(w.toBytes()));
+      expect(joined.roomName, equals('Room1'));
+      expect(joined.username, equals('alice'));
+      expect(joined.freeUploadSlots, equals(3));
+      expect(joined.uploadSpeed, equals(100000));
+      expect(joined.filesCount, equals(500));
+      expect(joined.directoryCount, equals(10));
+    });
+  });
+
+  group('UserLeftRoom', () {
+    test('parses user left event', () {
+      final w = WriteBuffer();
+      w.writeString('Room1');
+      w.writeString('alice');
+      final left = UserLeftRoom.parse(ReadBuffer(w.toBytes()));
+      expect(left.roomName, equals('Room1'));
+      expect(left.username, equals('alice'));
+    });
+  });
+
+  group('RoomList', () {
+    test('parses room list', () {
+      final w = WriteBuffer();
+      w.writeInt32(2);
+      w.writeString('Room1');
+      w.writeInt32(10);
+      w.writeString('Room2');
+      w.writeInt32(5);
+      final list = RoomList.parse(ReadBuffer(w.toBytes()));
+      expect(list.rooms.length, equals(2));
+      expect(list.rooms[0].name, equals('Room1'));
+      expect(list.rooms[0].userCount, equals(10));
+      expect(list.rooms[1].name, equals('Room2'));
+      expect(list.rooms[1].userCount, equals(5));
+    });
+  });
+
+  group('RoomTickerSet', () {
+    test('serializes room name and ticker', () {
+      final msg = RoomTickerSet(roomName: 'Room1', ticker: 'hello');
+      expect(msg.code, equals(150));
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readString(), equals('Room1'));
+      expect(r.readString(), equals('hello'));
+    });
+  });
+
+  group('RoomTickerRemove', () {
+    test('serializes room name', () {
+      final msg = RoomTickerRemove('Room1');
+      expect(msg.code, equals(151));
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readString(), equals('Room1'));
+    });
+  });
 }
