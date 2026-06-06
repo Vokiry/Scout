@@ -452,4 +452,63 @@ void main() {
       );
     });
   });
+
+  group('WishlistSearchRequest', () {
+    test('serializes ticket and query', () {
+      final msg = WishlistSearchRequest(ticket: 42, query: 'flac');
+      expect(msg.code, equals(67));
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readInt32(), equals(42));
+      expect(r.readString(), equals('flac'));
+    });
+  });
+
+  group('WishlistInclusion', () {
+    test('serializes add', () {
+      final msg = WishlistInclusion(add: true, phrase: 'flac');
+      expect(msg.code, equals(69));
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readInt32(), equals(1));
+      expect(r.readString(), equals('flac'));
+    });
+
+    test('serializes remove', () {
+      final msg = WishlistInclusion(add: false, phrase: 'mp3');
+      final r = ReadBuffer(msg.serialize().toBytes());
+      expect(r.readInt32(), equals(0));
+      expect(r.readString(), equals('mp3'));
+    });
+  });
+
+  group('WishlistReply', () {
+    test('parses wishlist reply', () {
+      final w = WriteBuffer();
+      w.writeString('alice');
+      w.writeInt32(1); // ticket
+      w.writeInt32(3); // freeUploadSlots
+      w.writeInt32(1000000); // uploadSpeed
+      w.writeInt32(0); // queueLength
+      w.writeInt32(1); // fileCount
+
+      w.writeInt32(0);
+      w.writeString('song.flac');
+      w.writeInt32(5000);
+      w.writeString('flac');
+      w.writeInt32(0);
+
+      final reply = WishlistReply.parse(ReadBuffer(w.toBytes()));
+      expect(reply.username, equals('alice'));
+      expect(reply.ticket, equals(1));
+      expect(reply.freeUploadSlots, equals(3));
+      expect(reply.files.length, equals(1));
+      expect(reply.files[0].filename, equals('song.flac'));
+    });
+
+    test('throws on malformed data', () {
+      expect(
+        () => WishlistReply.parse(ReadBuffer(Uint8List(0))),
+        throwsA(isA<BufferException>()),
+      );
+    });
+  });
 }

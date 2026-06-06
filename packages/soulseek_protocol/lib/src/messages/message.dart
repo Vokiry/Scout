@@ -563,3 +563,80 @@ class TransferRequest implements PeerMessage {
     return w;
   }
 }
+
+class WishlistSearchRequest implements ServerMessage {
+  final int ticket;
+  final String query;
+
+  WishlistSearchRequest({required this.ticket, required this.query});
+
+  @override
+  int get code => 67;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeInt32(ticket);
+    w.writeString(query);
+    return w;
+  }
+}
+
+class WishlistInclusion implements ServerMessage {
+  final bool add;
+  final String phrase;
+
+  WishlistInclusion({required this.add, required this.phrase});
+
+  @override
+  int get code => 69;
+
+  @override
+  WriteBuffer serialize() {
+    final w = WriteBuffer();
+    w.writeInt32(add ? 1 : 0);
+    w.writeString(phrase);
+    return w;
+  }
+}
+
+class WishlistReply {
+  final String username;
+  final int ticket;
+  final int freeUploadSlots;
+  final int uploadSpeed;
+  final int queueLength;
+  final List<SearchResultFile> files;
+
+  WishlistReply({
+    required this.username,
+    required this.ticket,
+    required this.freeUploadSlots,
+    required this.uploadSpeed,
+    required this.queueLength,
+    required this.files,
+  });
+
+  static WishlistReply parse(ReadBuffer buffer) {
+    final username = buffer.readString();
+    final ticket = buffer.readInt32();
+    final freeUploadSlots = buffer.readInt32();
+    final uploadSpeed = buffer.readInt32();
+    final queueLength = buffer.readInt32();
+    final fileCount = buffer.readInt32();
+
+    final files = <SearchResultFile>[];
+    for (int i = 0; i < fileCount; i++) {
+      files.add(SearchResultFile.parse(buffer));
+    }
+
+    return WishlistReply(
+      username: username,
+      ticket: ticket,
+      freeUploadSlots: freeUploadSlots,
+      uploadSpeed: uploadSpeed,
+      queueLength: queueLength,
+      files: files,
+    );
+  }
+}

@@ -11,6 +11,7 @@ import 'services/browse_service.dart';
 import 'services/chat_service.dart';
 import 'services/search_service.dart';
 import 'services/user_service.dart';
+import 'services/wishlist_service.dart';
 import 'transfer/download_manager.dart';
 
 class SoulseekClient {
@@ -20,6 +21,7 @@ class SoulseekClient {
   final ChatService chat;
   final UserService users;
   final BrowseService browseService;
+  final WishlistService wishlistService;
   final DownloadManager _downloadManager;
   final Map<String, PeerConnection> _activePeers = {};
 
@@ -30,12 +32,14 @@ class SoulseekClient {
     ChatService? chat,
     UserService? users,
     BrowseService? browseService,
+    WishlistService? wishlistService,
   }) : _server = server ?? ServerConnection(),
        auth = auth ?? AuthService(server: server ?? ServerConnection()),
        searchService = searchService ?? SearchService(server: server ?? ServerConnection()),
        chat = chat ?? ChatService(server: server ?? ServerConnection()),
        users = users ?? UserService(server: server ?? ServerConnection()),
        browseService = browseService ?? BrowseService(),
+       wishlistService = wishlistService ?? WishlistService(server: server ?? ServerConnection()),
        _downloadManager = DownloadManager();
 
   Stream<ServerConnectionState> get connectionState => auth.connectionState;
@@ -43,6 +47,7 @@ class SoulseekClient {
   Stream<PrivateMessage> get privateMessages => chat.privateMessages;
   Stream<UserStatus> get userStatus => users.userStatus;
   Stream<Map<String, DownloadProgress>> get downloadProgress => _downloadManager.allProgress;
+  Stream<WishlistReply> get wishlistResults => wishlistService.wishlistResults;
   Stream<ConnectionInfo> get connectionInfo => auth.connectionInfo;
   bool get authenticated => auth.authenticated;
   String? get username => auth.username;
@@ -53,6 +58,7 @@ class SoulseekClient {
     searchService.init();
     chat.init();
     users.init();
+    wishlistService.init();
   }
 
   Future<void> connect(String username, String password) async {
@@ -160,11 +166,18 @@ class SoulseekClient {
     );
   }
 
+  int wishlistSearch(String query) => wishlistService.wishlistSearch(query);
+
+  void addWishlistItem(String phrase) => wishlistService.addWishlistItem(phrase);
+
+  void removeWishlistItem(String phrase) => wishlistService.removeWishlistItem(phrase);
+
   void dispose() {
     searchService.dispose();
     chat.dispose();
     users.dispose();
     browseService.dispose();
+    wishlistService.dispose();
     auth.dispose();
     _downloadManager.dispose();
     for (final peer in _activePeers.values) {
