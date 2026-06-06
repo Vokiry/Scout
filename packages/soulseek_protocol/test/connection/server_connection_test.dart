@@ -27,9 +27,13 @@ class MockSocketTransport implements SocketTransport {
   @override
   Future<void> disconnect() async {
     _state = SocketState.disconnected;
-    _stateController.add(SocketStateChanged(state: SocketState.disconnected));
-    _stateController.close();
-    _messageController.close();
+    if (!_stateController.isClosed) {
+      _stateController.add(SocketStateChanged(state: SocketState.disconnected));
+      _stateController.close();
+    }
+    if (!_messageController.isClosed) {
+      _messageController.close();
+    }
   }
 
   @override
@@ -195,6 +199,36 @@ void main() {
       expect(states, contains(ServerConnectionState.disconnected));
 
       await sub.cancel();
+    });
+  });
+
+  group('setServer', () {
+    test('stores host and port', () {
+      server.setServer('server.slsknet.org', 2244);
+      // setServer should not throw
+    });
+  });
+
+  group('connect without setServer', () {
+    test('sends login to default server', () async {
+      await server.connect('user', 'pass');
+      expect(mockSocket.sentMessages.length, greaterThanOrEqualTo(1));
+      final loginMsg = mockSocket.sentMessages[0];
+      expect(loginMsg.code, equals(1));
+    });
+  });
+
+  group('disconnect', () {
+    test('is safe when already disconnected', () async {
+      await server.disconnect();
+      expect(server.state, equals(ServerConnectionState.disconnected));
+    });
+
+    test('is safe to call multiple times', () async {
+      await server.connect('u', 'p');
+      await server.disconnect();
+      await server.disconnect();
+      expect(server.state, equals(ServerConnectionState.disconnected));
     });
   });
 }

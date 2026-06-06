@@ -144,6 +144,31 @@ void main() {
       reconnector.dispose();
     }, timeout: Timeout(Duration(seconds: 5)));
 
+    test('start while already running resets attempts', () async {
+      final fakeSocket = FakeSocketTransport();
+      fakeSocket.failConnect = true;
+
+      final reconnector = ReconnectionManager(
+        fakeSocket,
+        config: ReconnectionConfig(
+          baseDelay: Duration(milliseconds: 1),
+          maxDelay: Duration(milliseconds: 5),
+          multiplier: 1.0,
+          maxAttempts: 10,
+          jitterMs: 0,
+        ),
+      );
+
+      reconnector.start('localhost', 2244);
+      await Future<void>.delayed(Duration(milliseconds: 10));
+
+      reconnector.start('localhost', 2244);
+      // Should reset attempts
+      expect(reconnector.state.attempt, equals(0));
+
+      reconnector.dispose();
+    }, timeout: Timeout(Duration(seconds: 5)));
+
     test('resets attempt counter on reset()', () async {
       final fakeSocket = FakeSocketTransport();
       fakeSocket.failConnect = true;

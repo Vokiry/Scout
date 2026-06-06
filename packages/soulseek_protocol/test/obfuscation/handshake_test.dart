@@ -13,6 +13,15 @@ void main() {
       }
     });
 
+    test('generateToken produces different values', () {
+      final tokens = <int>{};
+      for (int i = 0; i < 100; i++) {
+        tokens.add(ObfuscationHandshake.generateToken());
+      }
+      // Very unlikely to get 100 identical tokens
+      expect(tokens.length, greaterThan(1));
+    });
+
     test('initiate creates handshake with tokens', () {
       final hs = ObfuscationHandshake.initiate(0x12345678);
       expect(hs.ourToken, isNotNull);
@@ -30,17 +39,6 @@ void main() {
     });
 
     test('initiate and respond with matching tokens produce same key', () {
-      // Simulate two peers: A initiates (sends tokenA, receives tokenB from B)
-      // B responds (sends tokenB, receives tokenA from A)
-      // Both compute key as tokenA ^ tokenB, so keys should match
-      final aToken = ObfuscationHandshake.generateToken();
-      final bToken = ObfuscationHandshake.generateToken();
-      // To test key equality, we need two handshakes with swapped token pairs
-      // Handshake key = ourToken ^ peerToken
-      // A: ourToken=aToken, peerToken=bToken => key = aToken ^ bToken
-      // B: ourToken=bToken, peerToken=aToken => key = bToken ^ aToken = aToken ^ bToken
-      // Since initiate(peerToken) sets ourToken internally (random), we can't control both directly.
-      // Instead, we verify encode/decode works for the same handshake object.
       final hs = ObfuscationHandshake.initiate(0xDEADBEEF);
       final key = hs.computeKey();
       final data = Uint8List.fromList([1, 2, 3, 4, 5]);
@@ -69,7 +67,6 @@ void main() {
       final key = hs.computeKey();
       final original = Uint8List.fromList([0x00, 0x00, 0x00, 0x00]);
       final encoded = hs.encode(original, key);
-      // With XOR and non-zero key, zeros should become key bytes
       expect(encoded, isNot(equals(original)));
     });
 
@@ -92,6 +89,23 @@ void main() {
       final encoded = hs.encode(original, key);
       final decoded = hs.decode(encoded, wrongKey);
       expect(decoded, isNot(equals(original)));
+    });
+
+    test('encode with empty data', () {
+      final hs = ObfuscationHandshake.initiate(0x12345678);
+      final key = hs.computeKey();
+      final original = Uint8List(0);
+      final encoded = hs.encode(original, key);
+      expect(encoded, isEmpty);
+    });
+
+    test('all-zero key does not modify data', () {
+      final hs = ObfuscationHandshake.initiate(0x00000000);
+      // Create an all-zero key manually
+      final zeroKey = Uint8List(256);
+      final original = Uint8List.fromList([0xFF, 0xFE, 0xFD]);
+      final encoded = hs.encode(original, zeroKey);
+      expect(encoded, equals(original));
     });
   });
 }

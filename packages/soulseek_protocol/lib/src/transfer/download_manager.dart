@@ -40,16 +40,6 @@ class DownloadFile {
     return _progressController!.stream;
   }
 
-  void _emitProgress() {
-    _progressController?.add(DownloadProgress(
-      filename: filename,
-      downloadedBytes: downloadedBytes,
-      totalSize: size,
-      speed: speed,
-      state: state,
-    ));
-  }
-
   void dispose() {
     _progressController?.close();
   }
@@ -171,7 +161,7 @@ class DownloadManager {
 
       // Wait for completion
       await Future.doWhile(() async {
-        await Future.delayed(Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 100));
         return download.state == DownloadState.downloading;
       });
 

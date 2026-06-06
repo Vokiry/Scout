@@ -4,6 +4,7 @@ description: Pure Dart implementation of the Soulseek peer-to-peer file sharing 
 repository: https://github.com/vokiry/soulseek-flutter
 publish_to: none
 resolution: workspace
+# Using standalone resolution for testing (workspace requires Flutter SDK)
 
 environment:
   sdk: ^3.12.0

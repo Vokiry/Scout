@@ -15,10 +15,9 @@ class ConnectionRaceHandler {
   final int _localIp;
 
   ConnectionRaceHandler({
-    required String localUsername,
-    required int localIp,
-  })  : _localUsername = localUsername,
-        _localIp = localIp;
+    required this._localUsername,
+    required this._localIp,
+  });
 
   /// Returns true if we should initiate the connection (we are the "winner").
   bool shouldWeConnect(String remoteUsername, int remoteIp) {

@@ -16,7 +16,7 @@ class ReconnectionManager {
   final _stateController = StreamController<ReconnectionState>.broadcast();
 
   ReconnectionManager(this._socketManager, {ReconnectionConfig? config})
-      : _config = config ?? ReconnectionConfig();
+      : _config = config ?? const ReconnectionConfig();
 
   Stream<ReconnectionState> get stateChanges => _stateController.stream;
   ReconnectionState get state => ReconnectionState(

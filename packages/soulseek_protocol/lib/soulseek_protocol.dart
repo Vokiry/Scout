@@ -1,5 +1,3 @@
-library soulseek_protocol;
-
 export 'src/messages/codes.dart';
 export 'src/messages/buffer.dart';
 export 'src/messages/message.dart';

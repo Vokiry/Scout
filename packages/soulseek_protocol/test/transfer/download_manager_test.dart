@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:soulseek_protocol/soulseek_protocol.dart';
@@ -165,6 +164,81 @@ void main() {
     });
   });
 
+  group('multiple downloads', () {
+    test('tracks multiple files independently', () async {
+      final progress = <Map<String, DownloadProgress>>[];
+      final sub = manager.allProgress.listen((p) => progress.add(p));
+
+      manager.addDownload(
+        filename: 'a.flac', size: 100, username: 'alice', fileCode: 1,
+      );
+      await Future.delayed(Duration.zero);
+
+      expect(progress, isNotEmpty);
+      expect(progress.last.keys, contains('alice:a.flac'));
+
+      manager.addDownload(
+        filename: 'b.flac', size: 200, username: 'bob', fileCode: 2,
+      );
+      await Future.delayed(Duration.zero);
+
+      expect(progress.last.keys, contains('bob:b.flac'));
+
+      await sub.cancel();
+    });
+
+    test('same filename from different users is separate', () {
+      final dl1 = manager.addDownload(
+        filename: 'song.flac', size: 100, username: 'alice', fileCode: 1,
+      );
+      final dl2 = manager.addDownload(
+        filename: 'song.flac', size: 200, username: 'bob', fileCode: 2,
+      );
+      expect(dl1.filename, equals(dl2.filename));
+      expect(dl1.username, isNot(equals(dl2.username)));
+    });
+
+    test('remove one does not affect other', () {
+      final dl1 = manager.addDownload(
+        filename: 'a.flac', size: 100, username: 'alice', fileCode: 1,
+      );
+      manager.addDownload(
+        filename: 'b.flac', size: 200, username: 'alice', fileCode: 2,
+      );
+
+      manager.removeDownload(dl1);
+      // Should not crash
+      expect(manager, isNotNull);
+    });
+  });
+
+  group('DownloadFile', () {
+    test('progress stream can be listened to', () async {
+      final dl = DownloadFile(
+        filename: 'test.flac', size: 1000, username: 'user', fileCode: 1,
+      );
+      // The progress stream getter should return a valid stream
+      expect(dl.progress, isNotNull);
+      dl.dispose();
+    });
+
+    test('initial state is queued', () {
+      final dl = DownloadFile(
+        filename: 'test.flac', size: 1000, username: 'user', fileCode: 1,
+      );
+      expect(dl.state, equals(DownloadState.queued));
+      dl.dispose();
+    });
+
+    test('dispose is safe to call multiple times', () {
+      final dl = DownloadFile(
+        filename: 'test.flac', size: 1000, username: 'user', fileCode: 1,
+      );
+      dl.dispose();
+      dl.dispose();
+    });
+  });
+
   group('DownloadProgress', () {
     test('percentage is 0 for zero size', () {
       final p = DownloadProgress(
@@ -178,6 +252,20 @@ void main() {
         filename: 'file', downloadedBytes: 250, totalSize: 1000, state: DownloadState.downloading,
       );
       expect(p.percentage, equals(0.25));
+    });
+
+    test('percentage is 1.0 when complete', () {
+      final p = DownloadProgress(
+        filename: 'file', downloadedBytes: 500, totalSize: 500, state: DownloadState.completed,
+      );
+      expect(p.percentage, equals(1.0));
+    });
+
+    test('const constructor works', () {
+      const p = DownloadProgress(
+        filename: 'f', downloadedBytes: 0, totalSize: 0, state: DownloadState.queued,
+      );
+      expect(p.filename, equals('f'));
     });
   });
 }

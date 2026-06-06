@@ -109,7 +109,7 @@ class SoulseekClient {
   // --- Peer Connection ---
   Future<PeerConnection?> connectToPeer(String username, int ip, int port) async {
     if (_activePeers.containsKey(username)) {
-      _activePeers[username]!.disconnect();
+      await _activePeers[username]!.disconnect();
       _activePeers.remove(username);
     }
 

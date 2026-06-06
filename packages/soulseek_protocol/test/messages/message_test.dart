@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:soulseek_protocol/soulseek_protocol.dart';
@@ -128,19 +127,6 @@ void main() {
   });
 
   group('SearchResponseData', () {
-    SearchResultFile _makeFile({int code = 0, String name = 'file.flac', int size = 1000, String ext = 'flac'}) {
-      return SearchResultFile(
-        code: code,
-        filename: name,
-        size: size,
-        extension: ext,
-        attributeCount: 3,
-        bitrate: 320,
-        duration: 300,
-        sampleRate: 44100,
-      );
-    }
-
     test('parse modern format with attributes', () {
       final w = WriteBuffer();
       w.writeString('eve');

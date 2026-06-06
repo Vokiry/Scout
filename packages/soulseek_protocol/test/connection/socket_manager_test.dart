@@ -25,18 +25,6 @@ Future<ServerSocket> _startRawServer(int port, List<int> bytes) async {
   return server;
 }
 
-/// Helper: starts a raw TCP server that echoes back whatever is sent.
-Future<ServerSocket> _startEchoBackServer(int port) async {
-  final server = await ServerSocket.bind('127.0.0.1', port);
-  server.listen((socket) {
-    socket.listen((data) {
-      socket.add(data);
-      socket.close();
-    });
-  });
-  return server;
-}
-
 void main() {
   group('SocketManager', () {
     test('initial state is disconnected', () {
@@ -178,5 +166,35 @@ void main() {
       sm.dispose();
       sm.dispose(); // safe to call twice
     });
+
+    test('connect with invalid host returns disconnected', () async {
+      final sm = SocketManager();
+      await sm.connect('', 0);
+      expect(sm.state, equals(SocketState.disconnected));
+      sm.dispose();
+    }, timeout: Timeout(Duration(seconds: 5)));
+
+    test('disconnect while disconnected is safe', () async {
+      final sm = SocketManager();
+      await sm.disconnect();
+      expect(sm.state, equals(SocketState.disconnected));
+      sm.dispose();
+    });
+
+    test('sendRaw after disconnect throws', () async {
+      final sm = SocketManager();
+      sm.dispose();
+      expect(
+        () => sm.sendRaw(1, Uint8List(0)),
+        throwsA(isA<SocketManagerException>()),
+      );
+    });
+
+    test('multiple connect calls are safe', () async {
+      final sm = SocketManager();
+      await sm.connect('127.0.0.1', 1); // will fail, but should not crash
+      await sm.connect('127.0.0.1', 1); // second call is safe
+      sm.dispose();
+    }, timeout: Timeout(Duration(seconds: 15)));
   });
 }

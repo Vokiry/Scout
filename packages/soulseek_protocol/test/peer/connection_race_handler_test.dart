@@ -28,6 +28,12 @@ void main() {
         final handler = ConnectionRaceHandler(localUsername: 'alice', localIp: 1);
         expect(handler.shouldWeConnect('alice', 1), isFalse);
       });
+
+      test('empty usernames are compared lexicographically', () {
+        final handler = ConnectionRaceHandler(localUsername: '', localIp: 1);
+        // '' < 'a', so local username < remote username -> should connect
+        expect(handler.shouldWeConnect('a', 2), isTrue);
+      });
     });
 
     group('shouldRemoteConnect', () {

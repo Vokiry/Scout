@@ -26,8 +26,8 @@ class PeerConnection {
     required this.ip,
     required this.port,
     required this.type,
-    required SocketManager socketManager,
-  }) : _socketManager = socketManager;
+    required this._socketManager,
+  });
 
   PeerConnectionState get state => _state;
   Stream<PeerConnectionState> get stateChanges => _stateController.stream;

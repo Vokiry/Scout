@@ -189,5 +189,28 @@ void main() {
       final tooShort = Uint8List.fromList([0, 0, 0]); // need at least 8 bytes
       expect(() => SoulseekMessage.parse(tooShort), throwsA(isA<BufferException>()));
     });
+
+    test('parse code-only message (no payload)', () {
+      // length=4 (includes 4-byte code), code=0, payload empty
+      final header = Uint8List.fromList([4, 0, 0, 0, 0, 0, 0, 0]);
+      final parsed = SoulseekMessage.parse(header);
+      expect(parsed.code, equals(0));
+      expect(parsed.payload, isEmpty);
+    });
+
+    test('parse with large payload', () {
+      final payload = Uint8List(65536);
+      for (int i = 0; i < payload.length; i++) payload[i] = i & 0xFF;
+      final encoded = SoulseekMessage.encode(42, payload);
+      final parsed = SoulseekMessage.parse(encoded);
+      expect(parsed.code, equals(42));
+      expect(parsed.payload.length, equals(65536));
+    });
+
+    test('encode with max uint32 code wraps correctly', () {
+      final encoded = SoulseekMessage.encode(0xFFFFFFFF, Uint8List(0));
+      final parsed = SoulseekMessage.parse(encoded);
+      expect(parsed.code, equals(0xFFFFFFFF));
+    });
   });
 }
