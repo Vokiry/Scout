@@ -7,6 +7,8 @@ export 'src/connection/reconnection_manager.dart';
 export 'src/peer/peer_connection.dart';
 export 'src/peer/connection_race_handler.dart';
 export 'src/transfer/download_manager.dart';
+export 'src/transfer/upload_manager.dart';
+export 'src/network/distributed_network.dart';
 export 'src/obfuscation/handshake.dart';
 export 'src/soulseek_client.dart';
 export 'src/services/auth_service.dart';

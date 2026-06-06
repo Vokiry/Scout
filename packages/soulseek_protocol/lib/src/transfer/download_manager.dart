@@ -21,8 +21,9 @@ class DownloadFile {
   String? error;
   double? speed;
   String? placeInQueue;
+  int retryCount = 0;
 
-  StreamController<DownloadProgress>? _progressController;
+  final _progressController = StreamController<DownloadProgress>.broadcast();
 
   DownloadFile({
     required this.filename,
@@ -35,13 +36,20 @@ class DownloadFile {
     this.position = 0,
   });
 
-  Stream<DownloadProgress> get progress {
-    _progressController ??= StreamController<DownloadProgress>.broadcast();
-    return _progressController!.stream;
+  Stream<DownloadProgress> get progress => _progressController.stream;
+
+  void emitProgress() {
+    _progressController.add(DownloadProgress(
+      filename: filename,
+      downloadedBytes: downloadedBytes,
+      totalSize: size,
+      speed: speed,
+      state: state,
+    ));
   }
 
   void dispose() {
-    _progressController?.close();
+    _progressController.close();
   }
 }
 
@@ -67,10 +75,20 @@ class DownloadManager {
   final Map<String, DownloadFile> _downloads = {};
   final _progressController = StreamController<Map<String, DownloadProgress>>.broadcast();
   Timer? _speedTimer;
+  int _activeCount = 0;
 
-  DownloadManager();
+  final int maxConcurrent;
+  final int maxRetries;
+  final Map<String, PeerConnection> _activeConnections = {};
+
+  DownloadManager({
+    this.maxConcurrent = 3,
+    this.maxRetries = 3,
+  });
 
   Stream<Map<String, DownloadProgress>> get allProgress => _progressController.stream;
+  int get activeDownloadCount => _activeCount;
+  int get queuedDownloadCount => _downloads.values.where((d) => d.state == DownloadState.queued).length;
 
   DownloadFile addDownload({
     required String filename,
@@ -88,16 +106,19 @@ class DownloadManager {
     );
     _downloads['$username:$filename'] = download;
     _emitProgress();
+    _processQueue();
     return download;
   }
 
   Future<void> startDownload(DownloadFile download, PeerConnection connection) async {
-    if (download.state != DownloadState.queued) return;
+    if (download.state != DownloadState.queued && download.state != DownloadState.failed) return;
 
+    _activeCount++;
     download.state = DownloadState.requesting;
+    _activeConnections['${download.username}:${download.filename}'] = connection;
+    _emitProgress();
 
     try {
-      // Send transfer request
       final request = TransferRequest(
         direction: Direction.download,
         fileCode: download.fileCode,
@@ -109,12 +130,19 @@ class DownloadManager {
       download.state = DownloadState.downloading;
       _emitProgress();
 
-      // Wait for transfer response and start receiving
       await _receiveFile(download, connection);
     } catch (e) {
       download.state = DownloadState.failed;
       download.error = e.toString();
+      if (download.retryCount < maxRetries) {
+        download.retryCount++;
+        download.state = DownloadState.queued;
+      }
       _emitProgress();
+    } finally {
+      _activeCount--;
+      _activeConnections.remove('${download.username}:${download.filename}');
+      _processQueue();
     }
   }
 
@@ -125,25 +153,22 @@ class DownloadManager {
     final stopwatch = Stopwatch()..start();
 
     try {
-      final subscription = connection.messages.listen((message) async {
+      final sub = connection.messages.listen((message) async {
         if (message.code == PeerCode.transferResponse) {
           final buffer = ReadBuffer(message.payload);
           final response = buffer.readInt32();
           if (response != 0) {
-            // Error
             download.state = DownloadState.failed;
             download.error = 'Transfer denied (code: $response)';
+            download.emitProgress();
             return;
           }
         }
 
-        // Write received data
         raf.writeFromSync(message.payload);
-
         download.downloadedBytes += message.payload.length;
         download.position += message.payload.length;
 
-        // Calculate speed every 500ms
         if (stopwatch.elapsedMilliseconds >= 500) {
           final elapsed = stopwatch.elapsedMilliseconds / 1000.0;
           download.speed = (download.downloadedBytes - lastBytes) / elapsed;
@@ -152,20 +177,21 @@ class DownloadManager {
         }
 
         _emitProgress();
+        download.emitProgress();
 
         if (download.downloadedBytes >= download.size) {
           download.state = DownloadState.completed;
           _emitProgress();
+          download.emitProgress();
         }
       });
 
-      // Wait for completion
       await Future.doWhile(() async {
         await Future.delayed(const Duration(milliseconds: 100));
         return download.state == DownloadState.downloading;
       });
 
-      await subscription.cancel();
+      await sub.cancel();
     } finally {
       await raf.close();
     }
@@ -175,6 +201,7 @@ class DownloadManager {
     if (download.state == DownloadState.downloading) {
       download.state = DownloadState.paused;
       _emitProgress();
+      download.emitProgress();
     }
   }
 
@@ -182,18 +209,60 @@ class DownloadManager {
     if (download.state == DownloadState.paused) {
       download.state = DownloadState.queued;
       _emitProgress();
+      _processQueue();
     }
   }
 
   void cancelDownload(DownloadFile download) {
     download.state = DownloadState.cancelled;
     _emitProgress();
+    download.emitProgress();
   }
 
   void removeDownload(DownloadFile download) {
     _downloads.remove('${download.username}:${download.filename}');
+    _activeConnections.remove('${download.username}:${download.filename}');
     download.dispose();
     _emitProgress();
+  }
+
+  void retryDownload(DownloadFile download) {
+    if (download.state == DownloadState.failed) {
+      download.retryCount = 0;
+      download.state = DownloadState.queued;
+      _emitProgress();
+      _processQueue();
+    }
+  }
+
+  void _processQueue() {
+    if (_activeCount >= maxConcurrent) return;
+
+    final queued = _downloads.values
+        .where((d) => d.state == DownloadState.queued)
+        .toList();
+
+    for (final download in queued) {
+      if (_activeCount >= maxConcurrent) break;
+      final key = '${download.username}:${download.filename}';
+      final conn = _activeConnections[key];
+      if (conn != null) {
+        _activeCount++;
+        download.state = DownloadState.requesting;
+        _emitProgress();
+        _startQueuedDownload(download, conn);
+      }
+    }
+  }
+
+  Future<void> _startQueuedDownload(DownloadFile download, PeerConnection connection) async {
+    try {
+      await startDownload(download, connection);
+    } catch (e) {
+      download.state = DownloadState.failed;
+      download.error = e.toString();
+      _emitProgress();
+    }
   }
 
   void _emitProgress() {
@@ -223,6 +292,10 @@ class DownloadManager {
     for (final d in _downloads.values) {
       d.dispose();
     }
+    for (final conn in _activeConnections.values) {
+      conn.disconnect();
+    }
     _downloads.clear();
+    _activeConnections.clear();
   }
 }

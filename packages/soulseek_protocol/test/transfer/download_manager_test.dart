@@ -2,17 +2,28 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:soulseek_protocol/soulseek_protocol.dart';
+import 'package:soulseek_protocol/src/peer/peer_connection.dart';
 import 'package:test/test.dart';
 
 /// Fake peer connection for testing downloads.
-class FakePeerConnection {
+class FakePeerConnection implements TransferConnection {
   final _messagesController = StreamController<SoulseekMessage>.broadcast();
   final List<SoulseekMessage> sentMessages = [];
 
+  @override
+  String get username => 'testuser';
+
+  @override
   Stream<SoulseekMessage> get messages => _messagesController.stream;
 
+  @override
   void sendMessage(SoulseekMessage message) {
     sentMessages.add(message);
+  }
+
+  @override
+  void sendRaw(int code, Uint8List payload) {
+    sentMessages.add(SoulseekMessage(code, payload));
   }
 
   void injectTransferResponse() {
@@ -212,13 +223,95 @@ void main() {
     });
   });
 
+  group('concurrent limits', () {
+    test('default maxConcurrent is 3', () {
+      expect(manager.maxConcurrent, equals(3));
+    });
+
+    test('custom maxConcurrent is respected', () {
+      final mgr = DownloadManager(maxConcurrent: 1);
+      expect(mgr.maxConcurrent, equals(1));
+      mgr.dispose();
+    });
+
+    test('activeDownloadCount starts at 0', () {
+      expect(manager.activeDownloadCount, equals(0));
+    });
+
+    test('queuedDownloadCount returns queued count', () {
+      manager.addDownload(
+        filename: 'a.flac', size: 100, username: 'alice', fileCode: 1,
+      );
+      manager.addDownload(
+        filename: 'b.flac', size: 200, username: 'alice', fileCode: 2,
+      );
+      expect(manager.queuedDownloadCount, equals(2));
+    });
+  });
+
+  group('retry', () {
+    test('retryDownload resets failed download to queued', () {
+      final dl = manager.addDownload(
+        filename: 'a.flac', size: 100, username: 'alice', fileCode: 1,
+      );
+      dl.state = DownloadState.failed;
+      dl.error = 'Timeout';
+
+      manager.retryDownload(dl);
+      expect(dl.state, equals(DownloadState.queued));
+      expect(dl.retryCount, equals(0));
+    });
+
+    test('retryDownload does nothing for non-failed states', () {
+      final dl = manager.addDownload(
+        filename: 'a.flac', size: 100, username: 'alice', fileCode: 1,
+      );
+      dl.state = DownloadState.completed;
+
+      manager.retryDownload(dl);
+      expect(dl.state, equals(DownloadState.completed));
+    });
+
+    test('retryCount starts at 0', () async {
+      final dl = manager.addDownload(
+        filename: 'a.flac', size: 100, username: 'alice', fileCode: 1,
+      );
+      expect(dl.retryCount, equals(0));
+    });
+  });
+
   group('DownloadFile', () {
     test('progress stream can be listened to', () async {
       final dl = DownloadFile(
         filename: 'test.flac', size: 1000, username: 'user', fileCode: 1,
       );
-      // The progress stream getter should return a valid stream
       expect(dl.progress, isNotNull);
+      dl.dispose();
+    });
+
+    test('emitProgress emits on progress stream', () async {
+      final dl = DownloadFile(
+        filename: 'test.flac', size: 1000, username: 'user', fileCode: 1,
+      );
+      final events = <DownloadProgress>[];
+      final sub = dl.progress.listen((p) => events.add(p));
+
+      dl.state = DownloadState.downloading;
+      dl.emitProgress();
+      await Future.delayed(Duration.zero);
+
+      expect(events, isNotEmpty);
+      expect(events.first.state, equals(DownloadState.downloading));
+
+      await sub.cancel();
+      dl.dispose();
+    });
+
+    test('initial retryCount is 0', () {
+      final dl = DownloadFile(
+        filename: 'test.flac', size: 1000, username: 'user', fileCode: 1,
+      );
+      expect(dl.retryCount, equals(0));
       dl.dispose();
     });
 
