@@ -34,7 +34,6 @@
                 <Label Text="Save password"
                        VerticalTextAlignment="Center" />
                 <Switch IsToggled="{Binding SavePassword}"
-                        Command="{Binding ToggleSavePasswordCommand}"
                         Grid.Column="1" />
             </Grid>
 
@@ -45,7 +44,6 @@
                 <Label Text="PM &amp; download notifications"
                        VerticalTextAlignment="Center" />
                 <Switch IsToggled="{Binding NotificationsEnabled}"
-                        Command="{Binding ToggleNotificationsCommand}"
                         Grid.Column="1" />
             </Grid>
 
