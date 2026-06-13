@@ -15,8 +15,9 @@ This file documents the conventions, patterns, and structure of the Scout projec
 - `dotnet build` / `dotnet test` (no `npm`, no `yarn`, no JavaScript tooling)
 - `Directory.Build.props` at repo root applies to all projects:
   - `net8.0`, nullable enabled, treat warnings as errors
-  - `CS1591` (missing XML doc) and `CA2007` (ConfigureAwait) suppressed
+  - Suppressed globally: `CS1591`, `CA2007`, `CA1001`, `CA1816`, `CA1822`, `CA1835`, `CA1852`, `CA1711`, `CA2201`, `CA1848`, `CA1304`, `CA1311`
   - C# 12 implicit usings enabled
+- `Soulseek.Maui.csproj` has additional suppressions: `CA1305`, `CA1416`, `CS0169`, `CS8602`
 - `global.json` pins SDK to `8.0.x` (rollForward `latestFeature`)
 
 Before committing code, always run:
@@ -27,7 +28,7 @@ dotnet restore && dotnet build --configuration Release && dotnet test --configur
 ## Project Structure
 
 ```
-Soulseek.Protocol/           # The only library — zero external dependencies
+Soulseek.Protocol/           # Core protocol library — zero external dependencies
 ├── Connection/
 │   ├── SocketManager.cs     # TCP transport (read loop, framing, write lock)
 │   ├── ServerConnection.cs  # Server login, ping, disconnection relay
@@ -57,7 +58,18 @@ Soulseek.Protocol/           # The only library — zero external dependencies
 │   ├── DownloadManager.cs   # Queue, retry, concurrent limits
 │   └── UploadManager.cs     # Chunked send, deny callback
 ├── SoulseekClient.cs        # Main facade, wires everything together
-└── Subject.cs               # Thread-safe IObservable<T> implementation
+├── Subject.cs               # Thread-safe IObservable<T> implementation
+└── ObservableExtensions.cs  # Subscribe(Action<T>) extension methods for IObservable<T>
+Soulseek.Maui/               # MAUI Android app (net8.0-android)
+├── Soulseek.Maui.csproj     # Targets net8.0-android, CommunityToolkit.Mvvm
+├── MauiProgram.cs           # DI setup — 8 singletons + pages
+├── App.xaml/.cs             # Entry point, auto-connect, converters
+├── AppShell.xaml/.cs        # 7 tabs with SVG icons
+├── Converters/              # 9 value converters
+├── Services/                # Settings, Notifications, SoulseekClient wrapper
+├── ViewModels/ (8 files)    # Login, Search, Rooms, PMs, Downloads, Browse, Wishlist, Settings
+├── Views/ (16 files)        # XAML + code-behind for each tab
+└── Platforms/Android/       # AndroidManifest, MainActivity, MainApplication
 ```
 
 ## Coding Conventions
@@ -72,7 +84,8 @@ Soulseek.Protocol/           # The only library — zero external dependencies
 - All event/state exposures use `Subject<T>` (custom implementation, NOT `System.Reactive`).
 - `Subject<T>` is thread-safe with snapshot iteration and dispose-guard.
 - Never import `System.Reactive` or `System.Reactive.Linq` — there are no NuGet dependencies for `Soulseek.Protocol`.
-- Services subscribe to `_server.Messages.Subscribe(...)` in `Init()` and store the `IDisposable` subscription handle.
+- Services subscribe to `_server.MessageStream.Subscribe(...)` in `Init()` and store the `IDisposable` subscription handle.
+- `Subscribe(Action<T>)`, `Subscribe(Action<T>, Action<Exception>)`, `Subscribe(Action<T>, Action)` extension methods are provided by `ObservableExtensions.cs` (not `System.Reactive`).
 
 ### Interface Usage
 - `ISocketTransport`: abstraction over `SocketManager` (used by `ServerConnection`, `DistributedNetwork`)
@@ -114,7 +127,9 @@ Soulseek.Protocol/           # The only library — zero external dependencies
 - Do **NOT** use `System.Reactive` types (`Observable`, `Subject` from Rx.NET) — use the custom `Subject<T>`.
 - Do **NOT** use `INotifyPropertyChanged`, `event` delegates, or `IProgress<T>` — use `IObservable<T>`.
 - Do **NOT** add mocking frameworks to the test project.
-- Do **NOT** suppress CA2007 or CS1591 in individual files — they are already suppressed globally.
+- Do **NOT** suppress CA2007, CS1591, or other already-globally-suppressed warnings in individual files.
+- Do **NOT** name properties `Messages` — that name shadows the `Soulseek.Protocol.Messages` namespace. Use `MessageStream` instead.
+- Do **NOT** call `Subscribe(methodGroup)` or `Subscribe(lambda)` without the `ObservableExtensions` extension methods in scope (add `using Soulseek.Protocol;`).
 - Do **NOT** remove the `// Skip malformed messages` catch blocks — they are intentional protocol hardening.
 
 ## Git Workflow

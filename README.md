@@ -6,6 +6,7 @@ A production-ready, zero-dependency C# implementation of the Soulseek peer-to-pe
 Soulseek.sln
 ├── Soulseek.Protocol/          # Core protocol library (net8.0, pure .NET)
 ├── Soulseek.Client/            # Console host with DI and logging
+├── Soulseek.Maui/              # Android MAUI app (net8.0-android)
 └── Soulseek.Protocol.Tests/    # xUnit tests (146+ methods)
 ```
 
@@ -154,6 +155,7 @@ client.Dispose();
 - **Soulseek.Protocol**: Zero external dependencies (`System.*`, `Microsoft.*` only)
 - **Soulseek.Client**: `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Logging.Console`
 - **Soulseek.Protocol.Tests**: `xunit`, `Microsoft.NET.Test.Sdk`, `coverlet.collector`
+- **Soulseek.Maui**: `Microsoft.Maui.Controls`, `CommunityToolkit.Mvvm`
 
 ## Configuration
 
@@ -167,7 +169,7 @@ client.Dispose();
 
 - `Directory.Build.props`: `net8.0`, nullable enabled, treat warnings as errors, C# 12
 - `global.json`: SDK 8.0.x, rollForward `latestFeature`
-- `.github/workflows/ci.yml`: restore → build Release → test
+- `.github/workflows/ci.yml`: restore → build Release → test (Linux) + publish MAUI APK (Windows)
 
 ## Missing Features (Not Yet Implemented)
 
