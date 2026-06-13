@@ -11,6 +11,7 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>android-arm;android-arm64;android-x86;android-x64</RuntimeIdentifiers>
     <NoWarn>$(NoWarn);CA1305;CA1416;CS0169</NoWarn>
   </PropertyGroup>
 
