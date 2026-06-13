@@ -81,5 +81,8 @@ internal static class RandomNumberGenerator
         bytes.CopyTo(buffer);
     }
 
-    public static int GetInt32(int toExclusive) => lock (_random) { _random.Next(toExclusive); }
+    public static int GetInt32(int toExclusive)
+    {
+        lock (_random) { return _random.Next(toExclusive); }
+    }
 }
