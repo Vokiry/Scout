@@ -82,6 +82,11 @@ public class SoulseekClient
         _activePeers.Clear();
     }
 
+    public void SetServer(string host, int port)
+    {
+        _server.SetServer(host, port);
+    }
+
     public void SetListenPort(int port)
     {
         _server.SendMessage(new SoulseekMessage(

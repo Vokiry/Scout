@@ -10,7 +10,6 @@ namespace Soulseek.Maui.Services;
 public class SoulseekClientService
 {
     private bool _initialized;
-    private bool _resolving;
 
     public SoulseekClient Client { get; } = new();
     public bool IsConnected => Client.Authenticated;
@@ -112,7 +111,7 @@ public class SoulseekClientService
     public static string GetDownloadDirectory()
     {
         var dir = Android.OS.Environment.GetExternalStoragePublicDirectory(
-            Android.OS.DirectoryType.Downloads)?.AbsolutePath;
+            Android.OS.Environment.DirectoryDownloads)?.AbsolutePath;
         if (dir == null)
             dir = Path.Combine(
                 Android.OS.Environment.ExternalStorageDirectory?.AbsolutePath ?? "/sdcard",

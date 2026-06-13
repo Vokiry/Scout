@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Soulseek.Protocol;
 using Soulseek.Protocol.Messages;
 
 namespace Soulseek.Maui.ViewModels;
