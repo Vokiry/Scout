@@ -20,7 +20,7 @@ public class UserService
 
     public void Init()
     {
-        _messageSub = _server.Messages.Subscribe(OnMessage);
+        _messageSub = _server.MessageStream.Subscribe(OnMessage);
     }
 
     public void AddUser(string username)

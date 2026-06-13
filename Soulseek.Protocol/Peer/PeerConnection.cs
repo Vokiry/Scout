@@ -20,7 +20,7 @@ public enum PeerConnectionType
 public interface ITransferConnection
 {
     string Username { get; }
-    IObservable<SoulseekMessage> Messages { get; }
+    IObservable<SoulseekMessage> MessageStream { get; }
     void SendMessage(SoulseekMessage message);
     void SendRaw(int code, byte[] payload);
 }
@@ -50,7 +50,7 @@ public class PeerConnection : ITransferConnection
     }
 
     public IObservable<PeerConnectionState> StateChanges => _stateSubject;
-    public IObservable<SoulseekMessage> Messages => _messagesSubject;
+    public IObservable<SoulseekMessage> MessageStream => _messagesSubject;
 
     private string IntToIp(int value)
     {
@@ -64,7 +64,7 @@ public class PeerConnection : ITransferConnection
         {
             await _socketManager.Connect(IntToIp(Ip), Port);
             SetState(PeerConnectionState.Connected);
-            _subscription = _socketManager.Messages.Subscribe(OnMessage);
+            _subscription = _socketManager.MessageStream.Subscribe(OnMessage);
         }
         catch
         {

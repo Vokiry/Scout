@@ -1,3 +1,4 @@
+using Xunit;
 using Soulseek.Protocol.Obfuscation;
 
 namespace Soulseek.Protocol.Tests;

@@ -150,7 +150,7 @@ public class DownloadManager
 
         var tcs = new TaskCompletionSource();
 
-        using var sub = connection.Messages.Subscribe(message =>
+        using var sub = connection.MessageStream.Subscribe(message =>
         {
             if (message.Code != PeerCode.TransferResponse) return;
 

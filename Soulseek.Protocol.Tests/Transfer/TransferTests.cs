@@ -1,5 +1,6 @@
 using Soulseek.Protocol.Messages;
 using Soulseek.Protocol.Peer;
+using Xunit;
 using Soulseek.Protocol.Transfer;
 
 namespace Soulseek.Protocol.Tests.Transfer;
@@ -219,7 +220,7 @@ internal class MockTransferConnection : ITransferConnection
 
     public event Action<SoulseekMessage>? MessageSent;
 
-    public IObservable<SoulseekMessage> Messages => _messages;
+    public IObservable<SoulseekMessage> MessageStream => _messages;
 
     public void SendMessage(SoulseekMessage message) => MessageSent?.Invoke(message);
     public void SendRaw(int code, byte[] payload) => MessageSent?.Invoke(new SoulseekMessage(code, payload));

@@ -1,5 +1,6 @@
 using Soulseek.Protocol.Connection;
 using Soulseek.Protocol.Messages;
+using Xunit;
 using Soulseek.Protocol.Services;
 
 namespace Soulseek.Protocol.Tests.Services;
@@ -449,7 +450,7 @@ internal class MockServerTransport : IServerTransport
     public event Action<SoulseekMessage>? MessageSent;
 
     public IObservable<ServerConnectionState> StateChanges => _stateSubject;
-    public IObservable<SoulseekMessage> Messages => _messageSubject;
+    public IObservable<SoulseekMessage> MessageStream => _messageSubject;
     public IObservable<ConnectionInfo> ConnectionInfo => _infoSubject;
     public ServerConnectionState State => ServerConnectionState.Connected;
     public bool Authenticated => true;

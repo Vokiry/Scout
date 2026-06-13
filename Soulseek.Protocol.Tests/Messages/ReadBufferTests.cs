@@ -1,3 +1,4 @@
+using Xunit;
 using Soulseek.Protocol.Messages;
 
 namespace Soulseek.Protocol.Tests.Messages;

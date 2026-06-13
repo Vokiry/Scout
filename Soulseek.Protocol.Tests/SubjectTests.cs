@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace Soulseek.Protocol.Tests;
 
 public class SubjectTests

@@ -24,7 +24,7 @@ public class RoomChatService
 
     public void Init()
     {
-        _messageSub = _server.Messages.Subscribe(OnMessage);
+        _messageSub = _server.MessageStream.Subscribe(OnMessage);
     }
 
     public void JoinRoom(string roomName)
@@ -94,7 +94,7 @@ public class RoomChatService
                     _userLeftSubject.OnNext(left);
                     break;
                 case ServerCode.RoomList:
-                    var list = RoomList.Parse(new ReadBuffer(message.Payload));
+                    var list = Messages.RoomList.Parse(new ReadBuffer(message.Payload));
                     _roomListSubject.OnNext(list);
                     break;
             }

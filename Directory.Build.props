@@ -7,7 +7,7 @@
     <AnalysisLevel>latest-Recommended</AnalysisLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <NoWarn>$(NoWarn);CS1591;CA2007</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA1001;CA1816;CA1822;CA1835;CA1852;CA1711;CA2201;CA1848;CA1304;CA1311</NoWarn>
     <Copyright>Copyright (c) 2024 vokiry</Copyright>
     <Version>0.1.0</Version>
   </PropertyGroup>

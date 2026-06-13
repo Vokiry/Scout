@@ -1,4 +1,6 @@
+using Xunit;
 using Soulseek.Protocol.Connection;
+using Soulseek.Protocol.Messages;
 
 namespace Soulseek.Protocol.Tests.Connection;
 
@@ -72,13 +74,13 @@ public class ReconnectionManagerTests
 
 internal class MockSocketTransport : ISocketTransport
 {
-    private readonly Subject<Messages.SoulseekMessage> _messages = new();
+    private readonly Subject<SoulseekMessage> _messages = new();
     private readonly Subject<SocketStateChanged> _stateChanges = new();
     private SocketState _state = SocketState.Disconnected;
 
     public SocketState State => _state;
 
-    public IObservable<Messages.SoulseekMessage> Messages => _messages;
+    public IObservable<SoulseekMessage> MessageStream => _messages;
     public IObservable<SocketStateChanged> StateChanges => _stateChanges;
 
     public Task Connect(string host, int port, TimeSpan? timeout = null)
@@ -93,7 +95,7 @@ internal class MockSocketTransport : ISocketTransport
         return Task.CompletedTask;
     }
 
-    public void SendMessage(Messages.SoulseekMessage message) { }
+    public void SendMessage(SoulseekMessage message) { }
     public void SendRaw(int code, byte[] payload) { }
 
     public void SimulateConnect()

@@ -28,7 +28,7 @@ public class SearchService
 
     public void Init()
     {
-        _messageSub = _server.Messages.Subscribe(OnMessage);
+        _messageSub = _server.MessageStream.Subscribe(OnMessage);
     }
 
     public int Search(string query)

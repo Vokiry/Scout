@@ -18,7 +18,7 @@ public class ChatService
 
     public void Init()
     {
-        _messageSub = _server.Messages.Subscribe(OnMessage);
+        _messageSub = _server.MessageStream.Subscribe(OnMessage);
     }
 
     public void SendPrivateMessage(string username, string message)

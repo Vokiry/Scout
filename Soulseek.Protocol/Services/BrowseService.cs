@@ -26,7 +26,7 @@ public class BrowseService
             tcs.TrySetException(new TimeoutException($"Browse request timed out after {timeout}"));
         }, null, timeout.Value, Timeout.InfiniteTimeSpan);
 
-        sub = connection.Messages.Subscribe(new BrowseObserver(message =>
+        sub = connection.MessageStream.Subscribe(new BrowseObserver(message =>
         {
             if (message.Code != PeerCode.FolderContentsReply) return;
             try

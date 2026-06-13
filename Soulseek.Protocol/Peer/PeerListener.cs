@@ -19,7 +19,7 @@ public class IncomingConnection : ITransferConnection
 
     public string Username => _username;
 
-    public IObservable<SoulseekMessage> Messages => _socketManager.Messages;
+    public IObservable<SoulseekMessage> MessageStream => _socketManager.MessageStream;
 
     public void SendMessage(SoulseekMessage message) => _socketManager.SendMessage(message);
     public void SendRaw(int code, byte[] payload) => _socketManager.SendRaw(code, payload);
@@ -45,7 +45,7 @@ public class PeerListener
     public bool IsListening => _tcpListener != null;
     public int ConnectionCount => _connections.Count;
 
-    public async Task Start(int port)
+    public Task Start(int port)
     {
         _tcpListener = new TcpListener(IPAddress.Any, port);
         _tcpListener.Start();
@@ -53,6 +53,7 @@ public class PeerListener
         _cts = new CancellationTokenSource();
 
         _listenTask = Task.Run(() => AcceptLoop(_cts.Token));
+        return Task.CompletedTask;
     }
 
     private async Task AcceptLoop(CancellationToken ct)
@@ -65,7 +66,7 @@ public class PeerListener
                 var socketManager = new SocketManager();
                 socketManager.Accept(tcpClient);
                 var connection = new IncomingConnection(socketManager);
-                var sub = socketManager.Messages.Subscribe(message =>
+                var sub = socketManager.MessageStream.Subscribe(message =>
                 {
                     if (message.Code == PeerCode.TransferRequest)
                         HandleTransferRequest(message, connection);

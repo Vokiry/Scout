@@ -1,5 +1,6 @@
 using Soulseek.Protocol.Messages;
 using Soulseek.Protocol.Peer;
+using Xunit;
 using Soulseek.Protocol.Services;
 
 namespace Soulseek.Protocol.Tests.Services;

@@ -3,6 +3,7 @@ using Soulseek.Protocol;
 using Soulseek.Protocol.Connection;
 using Soulseek.Protocol.Messages;
 using Soulseek.Protocol.Services;
+using Soulseek.Protocol.Transfer;
 
 namespace Soulseek.Client;
 
@@ -82,10 +83,10 @@ class ConsoleClient
         });
     }
 
-    private async Task HandleCommand(string input)
+    private Task HandleCommand(string input)
     {
         var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0) return;
+        if (parts.Length == 0) return Task.CompletedTask;
 
         switch (parts[0].ToLower())
         {
@@ -133,5 +134,6 @@ class ConsoleClient
                 _logger.LogWarning("Unknown command: {Cmd}. Type /help for commands.", parts[0]);
                 break;
         }
+        return Task.CompletedTask;
     }
 }

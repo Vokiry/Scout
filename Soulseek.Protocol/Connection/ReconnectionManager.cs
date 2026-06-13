@@ -104,7 +104,7 @@ public class ReconnectionManager
             return;
         }
 
-        _ = _socketTransport.Connect(_host!, _port!);
+        _ = _socketTransport.Connect(_host!, _port!.Value);
     }
 
     private TimeSpan CalculateDelay()

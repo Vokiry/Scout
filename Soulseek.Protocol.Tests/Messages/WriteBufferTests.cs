@@ -1,3 +1,4 @@
+using Xunit;
 using Soulseek.Protocol.Messages;
 
 namespace Soulseek.Protocol.Tests.Messages;
@@ -36,7 +37,7 @@ public class WriteBufferTests
         var bytes = w.ToBytes();
         Assert.Equal(8, bytes.Length);
         var result = BitConverter.ToUInt64(bytes);
-        Assert.Equal(0x0123456789ABCDEF, result);
+        Assert.Equal(0x0123456789ABCDEFUL, result);
     }
 
     [Fact]
@@ -104,7 +105,7 @@ public class WriteBufferTests
     public void ToBytes_ReturnsCopy()
     {
         var w = new WriteBuffer();
-        w.WriteByte(0xFF);
+        w.WriteUint8(0xFF);
         var b1 = w.ToBytes();
         var b2 = w.ToBytes();
         Assert.Equal(b1, b2);

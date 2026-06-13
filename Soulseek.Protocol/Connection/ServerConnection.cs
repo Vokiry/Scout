@@ -22,7 +22,7 @@ public record ConnectionInfo(
 public interface IServerTransport
 {
     IObservable<ServerConnectionState> StateChanges { get; }
-    IObservable<SoulseekMessage> Messages { get; }
+    IObservable<SoulseekMessage> MessageStream { get; }
     IObservable<ConnectionInfo> ConnectionInfo { get; }
     ServerConnectionState State { get; }
     bool Authenticated { get; }
@@ -61,7 +61,7 @@ public class ServerConnection : IServerTransport
     }
 
     public IObservable<ServerConnectionState> StateChanges => _stateSubject;
-    public IObservable<SoulseekMessage> Messages => _messageSubject;
+    public IObservable<SoulseekMessage> MessageStream => _messageSubject;
     public IObservable<ConnectionInfo> ConnectionInfo => _connectionInfoSubject;
     public ServerConnectionState State => _state;
     public bool Authenticated => _authenticated;
@@ -70,7 +70,7 @@ public class ServerConnection : IServerTransport
     public void Init()
     {
         _socketStateSub = _socket.StateChanges.Subscribe(OnSocketStateChange);
-        _socketMessageSub = _socket.Messages.Subscribe(OnMessage);
+        _socketMessageSub = _socket.MessageStream.Subscribe(OnMessage);
     }
 
     public void SetServer(string host, int port)

@@ -29,7 +29,7 @@ public record MessageReceived(Messages.SoulseekMessage Message);
 public interface ISocketTransport
 {
     SocketState State { get; }
-    IObservable<Messages.SoulseekMessage> Messages { get; }
+    IObservable<Messages.SoulseekMessage> MessageStream { get; }
     IObservable<SocketStateChanged> StateChanges { get; }
     Task Connect(string host, int port, TimeSpan? timeout = null);
     Task Disconnect();
@@ -56,7 +56,7 @@ public class SocketManager : ISocketTransport, IDisposable
 
     public SocketState State => _state;
 
-    public IObservable<Messages.SoulseekMessage> Messages => _messageSubject;
+    public IObservable<Messages.SoulseekMessage> MessageStream => _messageSubject;
     public IObservable<SocketStateChanged> StateChanges => _stateSubject;
 
     public void Dispose()

@@ -62,7 +62,7 @@ public class DistributedNetwork
             }
             _parentSocket = socket;
             _role = DistributedRole.Child;
-            _parentMessageSub = socket.Messages.Subscribe(OnParentMessage);
+            _parentMessageSub = socket.MessageStream.Subscribe(OnParentMessage);
             SetState(DistributedState.Connected);
             return true;
         }
