@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Soulseek.Maui.ViewModels"
+             x:Class="Soulseek.Maui.Views.SearchPage"
+             x:DataType="vm:SearchViewModel"
+             Title="Search"
+             BackgroundColor="{StaticResource Background}">
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="8" RowSpacing="8">
+
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Entry Placeholder="Artist, album, track..."
+                   Text="{Binding Query}"
+                   ReturnCommand="{Binding SearchCommand}"
+                   HeightRequest="46" />
+            <Button Text="Search"
+                    Command="{Binding SearchCommand}"
+                    WidthRequest="80"
+                    HeightRequest="46" />
+        </Grid>
+
+        <HorizontalStackLayout Grid.Row="1" Spacing="8">
+            <Picker ItemsSource="{Binding FilterTypes}"
+                    SelectedItem="{Binding FilterType}"
+                    WidthRequest="130"
+                    HeightRequest="36" />
+            <Label Text="{Binding StatusText}"
+                   Style="{StaticResource Caption}"
+                   VerticalTextAlignment="Center" />
+            <ActivityIndicator IsRunning="{Binding IsSearching}"
+                               IsVisible="{Binding IsSearching}"
+                               HeightRequest="20" WidthRequest="20" />
+        </HorizontalStackLayout>
+
+        <RefreshView Grid.Row="2" IsRefreshing="{Binding IsSearching}">
+            <CollectionView ItemsSource="{Binding Results}"
+                            IsGrouped="True"
+                            SelectionMode="None">
+                <CollectionView.GroupHeaderTemplate>
+                    <DataTemplate x:DataType="vm:SearchUserGroup">
+                        <Grid Padding="8,12,8,4" ColumnDefinitions="*,Auto"
+                              BackgroundColor="{StaticResource Surface}">
+                            <Label Text="{Binding Username}"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource Primary}" />
+                            <Label Text="{Binding FileCount}"
+                                   Style="{StaticResource Caption}"
+                                   Grid.Column="1" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.GroupHeaderTemplate>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SearchResultItem">
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems>
+                                    <SwipeItem Text="Download"
+                                               BackgroundColor="{StaticResource Primary}"
+                                               Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SearchViewModel}}, Path=DownloadCommand}"
+                                               CommandParameter="{Binding .}" />
+                                    <SwipeItem Text="Browse"
+                                               BackgroundColor="{StaticResource Secondary}"
+                                               Command="{Binding Source={RelativeSource AncestorType={x:Type vm:SearchViewModel}}, Path= BrowseUserCommand}"
+                                               CommandParameter="{Binding .}" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
+                            <Border Stroke="{StaticResource Divider}"
+                                    StrokeThickness="1"
+                                    Margin="0,1"
+                                    Padding="10,6"
+                                    BackgroundColor="{StaticResource Surface}"
+                                    StrokeShape="RoundRectangle 6">
+                                <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="2">
+                                    <Label Text="{Binding Filename}"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="1" />
+                                    <Label Text="{Binding Size, Converter={StaticResource FileSize}}"
+                                           Style="{StaticResource Caption}"
+                                           Grid.Column="1"
+                                           VerticalTextAlignment="Center" />
+                                    <Label Text="{Binding Bitrate, Converter={StaticResource BitrateDisplay}}"
+                                           Style="{StaticResource Caption}"
+                                           Grid.Column="2"
+                                           VerticalTextAlignment="Center" />
+                                    <HorizontalStackLayout Grid.Row="1" Grid.ColumnSpan="3" Spacing="12">
+                                        <Label Text="{Binding Extension}"
+                                               Style="{StaticResource Caption}" />
+                                        <Label Text="{Binding Duration, Converter={StaticResource Duration}}"
+                                               Style="{StaticResource Caption}" />
+                                    </HorizontalStackLayout>
+                                </Grid>
+                            </Border>
+                        </SwipeView>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Padding="32">
+                        <Label Text="No results yet"
+                               Style="{StaticResource Subhead}"
+                               HorizontalTextAlignment="Center" />
+                        <Label Text="Search for music or files using the bar above"
+                               Style="{StaticResource Caption}"
+                               HorizontalTextAlignment="Center"
+                               Margin="0,8,0,0" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </RefreshView>
+
+    </Grid>
+
+</ContentPage>

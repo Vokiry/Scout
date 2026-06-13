@@ -1,34 +1,44 @@
-name: CI
+name: build
 
 on:
   push:
-    branches: [main, feat/**]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  analyze-and-test:
+  test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/soulseek_protocol
-
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: Restore
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    - name: Test
+      run: dotnet test --configuration Release --no-build --verbosity normal
 
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: 3.12
-
-      - name: Disable workspace resolution
-        run: |
-          sed -i 's/resolution: workspace/disabled: workspace/' pubspec.yaml
-
-      - name: Install dependencies
-        run: dart pub get
-
-      - name: Analyze
-        run: dart analyze
-
-      - name: Run tests
-        run: dart test
+  apk:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: Install MAUI workload
+      run: dotnet workload install maui
+    - name: Restore
+      run: dotnet restore
+    - name: Build APK
+      run: dotnet publish Soulseek.Maui -f net8.0-android -c Release -o apk
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: scout-apk
+        path: apk/*.apk

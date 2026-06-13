@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:views="clr-namespace:Soulseek.Maui.Views"
+       x:Class="Soulseek.Maui.AppShell"
+       Shell.FlyoutBehavior="Disabled">
+
+    <TabBar>
+        <ShellContent Title="Search" Icon="search.svg"
+                      ContentTemplate="{DataTemplate views:SearchPage}" />
+        <ShellContent Title="Rooms" Icon="rooms.svg"
+                      ContentTemplate="{DataTemplate views:RoomsPage}" />
+        <ShellContent Title="PMs" Icon="pm.svg"
+                      ContentTemplate="{DataTemplate views:PrivateMessagesPage}" />
+        <ShellContent Title="Downloads" Icon="downloads.svg"
+                      ContentTemplate="{DataTemplate views:DownloadsPage}" />
+        <ShellContent Title="Browse" Icon="browse.svg"
+                      ContentTemplate="{DataTemplate views:BrowsePage}" />
+        <ShellContent Title="Wishlist" Icon="browse.svg"
+                      ContentTemplate="{DataTemplate views:WishlistPage}" />
+        <ShellContent Title="Settings" Icon="settings.svg"
+                      ContentTemplate="{DataTemplate views:SettingsPage}" />
+    </TabBar>
+
+</Shell>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Soulseek.Maui.Converters"
+             x:Class="Soulseek.Maui.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:InvertBoolConverter x:Key="InvertBool" />
+            <conv:IntToBoolConverter x:Key="IntToBool" />
+            <conv:StringNotEmptyConverter x:Key="StringNotEmpty" />
+            <conv:FileSizeConverter x:Key="FileSize" />
+            <conv:DurationConverter x:Key="Duration" />
+            <conv:BitrateDisplayConverter x:Key="BitrateDisplay" />
+            <conv:DownloadStateColorConverter x:Key="DownloadStateColor" />
+            <conv:BoolToLoginTextConverter x:Key="BoolToLoginText" />
+            <conv:BoolToFilterTextConverter x:Key="BoolToFilterText" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

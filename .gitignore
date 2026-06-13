@@ -1,28 +1,35 @@
-# Flutter
-build/
-.dart_tool/
-.packages
-.pub/
-.flutter-plugins
-.flutter-plugins-dependencies
-*.iml
-.idea/
-.metadata
-*.lock
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+.vs/
+*.DotSettings
+packages/
+*.nupkg
+*.nuget.props
+*.nuget.targets
 
-# Dart
-*.log
-*.pid
+# Build
+[Bb]uild/
+[Dd]eploy/
+[Dd]ocs/_site/
+
+# Tooling
+**/tools/**/
+[Dd]ependencies/
 
 # OS
 .DS_Store
 Thumbs.db
-
-# IDE
-.vscode/
 *.swp
 *.swo
+*~
 
-# FVM
-.fvm/
-version.json
+# IDE
+.idea/
+.vscode/
+*.sln.DotSettings.user
+*.suo
+*.user

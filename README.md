@@ -1,100 +1,184 @@
-# Scout
+# Scout — Soulseek for .NET
 
-A modern mobile client for the Soulseek peer-to-peer music sharing network.
+A production-ready, zero-dependency C# implementation of the Soulseek peer-to-peer file sharing protocol (`.NET 8`).
 
-Built with Flutter for cross-platform support (Android, iOS, Linux) with a focus on stability, usability, and a clean interface inspired by Nicotine+.
+```
+Soulseek.sln
+├── Soulseek.Protocol/          # Core protocol library (net8.0, pure .NET)
+├── Soulseek.Client/            # Console host with DI and logging
+└── Soulseek.Protocol.Tests/    # xUnit tests (146+ methods)
+```
 
-## Features
+## Quick Start
 
-- **Music Search** — search across thousands of users with real-time results, deduplication, and grouping by user
-- **Smart Downloads** — segmented downloads with concurrent limits (configurable), retry logic, queue management, and waveform progress indicators
-- **Upload Management** — incoming transfer request handling with accept/deny callbacks, file streaming in 1MB chunks, upload progress tracking, and concurrent upload limits
-- **User Browsing** — explore shared files from other users with a request/response pattern over peer connections and parsed folder tree
-- **Chat** — private messages and public chat rooms (join/leave rooms, room messages, user join/leave events, room list, room tickers)
-- **Wishlist Searches** — persistent wishlist queries with add/remove items and streaming match results
-- **Distributed Network** — parent/child relay for distributed search coverage with state machine and configurable branch limit
-- **Resilient Networking** — automatic reconnection with exponential backoff, connection race condition handling, IPv4/IPv6 fallback, obfuscated handshake (Pi + XOR)
-- **Service Layer Architecture** — extracted AuthService, SearchService, ChatService, UserService, BrowseService, WishlistService, RoomChatService from the monolithic client for testability
-- **CI/CD** — GitHub Actions pipeline for Dart 3.12 static analysis and test suite on push/PR to main
-- **Material Design 3** with custom visual flair — squircle cards, animated transitions, gradient placeholders
+```bash
+dotnet restore
+dotnet build --configuration Release
+dotnet test --configuration Release
+dotnet run --project Soulseek.Client -- <username> <password>
+```
 
 ## Architecture
 
-```
-soulseek-flutter/
-├── packages/
-│   ├── soulseek_protocol/     # Pure Dart (268+ tests) — Soulseek protocol
-│   │   ├── lib/src/
-│   │   │   ├── messages/      # Binary serialization/deserialization
-│   │   │   ├── connection/    # TCP sockets, reconnect, keepalive
-│   │   │   ├── peer/          # Peer-to-peer connections, race handling, incoming listener
-│   │   │   ├── transfer/      # Download/upload management
-│   │   │   ├── services/      # Auth, Search, Chat, User, Browse, Wishlist, RoomChat
-│   │   │   ├── network/       # Distributed network (parent/child relay)
-│   │   │   └── obfuscation/   # Obfuscated handshake (Pi + XOR)
-│   │   └── test/
-│   └── soulseek_app/          # Flutter application
-│       ├── lib/
-│       │   ├── core/          # Theme, DI, routing
-│       │   ├── services/      # Business logic layer
-│       │   ├── state/         # Riverpod state management
-│       │   └── ui/            # Screens & widgets
-│       └── test/
-└── pubspec.yaml               # Workspace root
-```
+The library is built on a **reactive foundation** — all state changes and events are exposed as `IObservable<T>` via `Subject<T>`, mirroring the Dart `Stream` pattern from the original Flutter implementation.
 
-## Tech Stack
-
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| UI Framework | Flutter 3.44 | Cross-platform, native perf |
-| State | Riverpod 2 | Testable, compile-safe, no BuildContext dependency |
-| Networking | dart:io Socket | Full TCP control, no FFI needed |
-| Persistence | drift (SQLite) | Type-safe, reactive streams |
-| Secure Storage | flutter_secure_storage | Keychain/Keystore |
-| Navigation | go_router | Declarative, deep links |
-| Code Gen | freezed + json_serializable | Immutable data classes |
-
-## Getting Started
-
-### Prerequisites
-
-- Flutter SDK 3.44+
-- Dart SDK 3.12+
-
-### Setup
-
-```bash
-git clone git@github.com:Vokiry/Scout.git
-cd Scout
-flutter pub get
-```
-
-### Run
-
-```bash
-cd packages/soulseek_app
-flutter run
-```
-
-## Soulseek Protocol
-
-Scout implements the Soulseek protocol from scratch in pure Dart. The protocol uses TCP with a simple binary framing:
+### Layer Overview
 
 ```
-[Length: u32 LE] [Code: u32 LE] [Payload: N bytes]
+┌─────────────────────────────────────────────────┐
+│                  SoulseekClient                  │  Facade
+├─────────────────────────────────────────────────┤
+│ Auth  Search  Chat  Users  Browse  Wishlist  Room│  Services
+├─────────────────────────────────────────────────┤
+│ ServerConnection   PeerConnection  PeerListener  │  Connection
+│ DistributedNetwork                               │
+├─────────────────────────────────────────────────┤
+│ SocketManager (TCP framing)                      │  Transport
+├─────────────────────────────────────────────────┤
+│ SoulseekMessage  ReadBuffer  WriteBuffer         │  Protocol
+└─────────────────────────────────────────────────┘
 ```
 
-Key protocol features implemented:
-- Server login, search, private messaging, user status, room chat, wishlist
-- Peer-to-peer connections with obfuscated handshake (Pi shuffle + XOR)
-- Connection race detection and resolution
-- File transfer with segmented downloads, resume, concurrent limits, and retry
-- Upload request handling with accept/deny, file streaming, progress tracking
-- User browsing with folder contents request/response parsing
-- Distributed network participation (parent/child relay, configurable branches)
-- Incoming peer connection listener and routing to upload manager
+### Transport — `SocketManager`
+
+- TCP client with async read-loop, message framing (8-byte header), and write-lock via `SemaphoreSlim`
+- DNS resolution with IPv4 preference
+- State machine: `Disconnected → Connecting → Connected`
+- Handles connection refused, DNS failure, timeout, reset
+- Accepts pre-connected `TcpClient` for incoming peer connections
+
+### Server Connection — `ServerConnection`
+
+- Login flow, ping/pong keep-alive, graceful shutdown detection
+- `ReconnectionManager` with exponential backoff + jitter
+- Configurable base delay (1s), max delay (60s), multiplier (2x), max attempts (-1 = infinite)
+
+### Message Protocol
+
+Every message on the wire has this frame:
+
+```
+┌──────────────────────────────────────┐
+│  Length (uint32 LE, 4 bytes)         │  total frame - 4
+├──────────────────────────────────────┤
+│  Code   (uint32 LE, 4 bytes)         │  ServerCode / PeerCode
+├──────────────────────────────────────┤
+│  Payload (Length - 4 bytes)          │  message-specific data
+└──────────────────────────────────────┘
+```
+
+All integers are **little-endian**. Strings are length-prefixed (uint32 LE) UTF-8.
+
+### Services
+
+| Service | Listenable | Description |
+|---------|-----------|-------------|
+| `AuthService` | `ConnectionState`, `ConnectionInfo` | Server login/logout |
+| `SearchService` | `SearchResults` | File search (new + old format) |
+| `ChatService` | `PrivateMessages` | Private messaging |
+| `UserService` | `UserStatus` | User lookup and status |
+| `BrowseService` | — | Browse peer shares (async request/response with timeout) |
+| `WishlistService` | `WishlistResults` | Wishlist search and management |
+| `RoomChatService` | `RoomMessages`, `UserJoined`, `UserLeft`, `RoomList` | Room chat |
+
+### Peer-to-Peer
+
+- `PeerConnection` wraps a `SocketManager` with username/ip/port metadata
+- `PeerListener` accepts incoming TCP connections, routes `TransferRequest` to `UploadManager`
+- `PeerConnectionType.Incoming` / `PeerConnectionType.Outgoing`
+
+### Transfers
+
+- `DownloadManager`: queue-based, configurable max concurrent (3) and max retries (3), supports pause/resume/cancel/retry
+- `UploadManager`: chunked (1MiB) file sending, handles deny callback
+- Transfer flow: `TransferRequest` (135) → `TransferResponse` (136) with status code (0 = ok, 1 = denied, 2 = not found)
+
+### Distributed Network
+
+- Parent/child relay via `DistributedNetwork`
+- Search propagation through the distributed tree
+- Configurable max child branches (10)
+- Obfuscation handshake using Pi-based XOR key derivation
+
+### Obfuscation
+
+The `ObfuscationHandshake` class implements:
+- Token exchange (our token XOR peer token)
+- Key derivation from Pi digits
+- XOR encode/decode (symmetric)
+
+## API Surface
+
+### `SoulseekClient` — Main facade
+
+```csharp
+var client = new SoulseekClient();
+client.Init();
+await client.Connect(username, password);
+
+// Listen
+client.SearchResults.Subscribe(result => { /* ... */ });
+client.PrivateMessages.Subscribe(pm => { /* ... */ });
+
+// Search
+int ticket = client.Search("depeche mode");
+
+// Browse
+var shares = await client.BrowseUser(username, ip, port);
+
+// Download
+client.EnqueueDownload("file.mp3", 12345678, "user", 42);
+
+// Disconnect
+client.Dispose();
+```
+
+### Observable Endpoints
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ConnectionState` | `IObservable<ServerConnectionState>` | Disconnected / Connecting / Connected / Reconnecting |
+| `SearchResults` | `IObservable<SearchResult>` | File search results |
+| `PrivateMessages` | `IObservable<PrivateMessage>` | Incoming private messages |
+| `UserStatus` | `IObservable<UserStatusMessage>` | User online/away status |
+| `DownloadProgress` | `IObservable<Dictionary<string, DownloadProgress>>` | All active downloads |
+| `WishlistResults` | `IObservable<WishlistReply>` | Wishlist search results |
+| `RoomMessages` | `IObservable<RoomMessageData>` | Room chat messages |
+| `RoomUserJoined` | `IObservable<UserJoinedRoom>` | Users joining rooms |
+| `RoomUserLeft` | `IObservable<UserLeftRoom>` | Users leaving rooms |
+| `RoomList` | `IObservable<RoomList>` | Available chat rooms |
+| `ConnectionInfo` | `IObservable<ConnectionInfo>` | Auth result, IP, port, obfuscation status |
+
+## Dependencies
+
+- **Soulseek.Protocol**: Zero external dependencies (`System.*`, `Microsoft.*` only)
+- **Soulseek.Client**: `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Logging.Console`
+- **Soulseek.Protocol.Tests**: `xunit`, `Microsoft.NET.Test.Sdk`, `coverlet.collector`
+
+## Configuration
+
+- Default server: `server.slsknet.org:2244` (configurable via `SetServer`)
+- Connection timeout: 10 seconds
+- Browse timeout: 30 seconds
+- Reconnection: base 1s, max 60s, multiplier 2x, jitter ±500ms
+- Download retries: 3 max
+
+## Project Settings
+
+- `Directory.Build.props`: `net8.0`, nullable enabled, treat warnings as errors, C# 12
+- `global.json`: SDK 8.0.x, rollForward `latestFeature`
+- `.github/workflows/ci.yml`: restore → build Release → test
+
+## Missing Features (Not Yet Implemented)
+
+- Place-in-queue polling (`PlaceInQueue` response)
+- Privileges checking
+- User info (avatar, description)
+- Folder browsing with subdirectory support
+- Room tickers display
+- Private rooms
+- Interest management (likes/dislikes)
 
 ## License
 
-GNU General Public License v3.0
+Copyright (c) 2024 vokiry
