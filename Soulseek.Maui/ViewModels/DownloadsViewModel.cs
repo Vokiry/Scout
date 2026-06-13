@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Soulseek.Protocol;
+using Soulseek.Protocol.Transfer;
 
 namespace Soulseek.Maui.ViewModels;
 
@@ -107,11 +108,11 @@ public partial class DownloadsViewModel : ObservableObject
         {
             var context = Android.App.Application.Context;
             if (context == null) return;
-            var uri = new Android.Net.Uri.Builder()
-                .Scheme("content")
-                .Authority(context.PackageName!)
-                .Path(item.LocalPath)
-                .Build();
+            var builder = new Android.Net.Uri.Builder();
+            builder.Scheme("content");
+            builder.Authority(context.PackageName!);
+            builder.Path(item.LocalPath);
+            var uri = builder.Build();
             await Launcher.OpenAsync(new OpenFileRequest
             {
                 File = new ReadOnlyFile(item.LocalPath)
