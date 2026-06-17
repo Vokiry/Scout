@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Soulseek.Protocol</PackageId>
+    <Authors>vokiry</Authors>
+    <Description>Pure C# implementation of the Soulseek peer-to-peer file sharing protocol.</Description>
+    <RepositoryUrl>https://github.com/vokiry/soulseek-flutter</RepositoryUrl>
+    <PackageTags>soulseek; p2p; filesharing; protocol</PackageTags>
+    <RootNamespace>Soulseek.Protocol</RootNamespace>
+    <AssemblyName>Soulseek.Protocol</AssemblyName>
+  </PropertyGroup>
+
+</Project>

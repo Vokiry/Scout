@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Soulseek.Maui.ViewModels"
+             x:Class="Soulseek.Maui.Views.BrowsePage"
+             x:DataType="vm:BrowseViewModel"
+             Title="Browse"
+             BackgroundColor="{StaticResource Background}">
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="8" RowSpacing="8">
+
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Entry Placeholder="Username..."
+                   Text="{Binding Username}"
+                   ReturnCommand="{Binding BrowseCommand}"
+                   HeightRequest="44" />
+            <Button Text="Browse"
+                    Command="{Binding BrowseCommand}"
+                    WidthRequest="80"
+                    HeightRequest="44"
+                    IsEnabled="{Binding IsBrowsing, Converter={StaticResource InvertBool}}" />
+        </Grid>
+
+        <HorizontalStackLayout Grid.Row="1" Spacing="8" Margin="0,0,0,4">
+            <ActivityIndicator IsRunning="{Binding IsBrowsing}"
+                               IsVisible="{Binding IsBrowsing}"
+                               HeightRequest="18" WidthRequest="18" />
+            <Label Text="{Binding StatusText}"
+                   Style="{StaticResource Caption}"
+                   VerticalTextAlignment="Center" />
+        </HorizontalStackLayout>
+
+        <CollectionView Grid.Row="2"
+                         ItemsSource="{Binding Folders}"
+                         IsGrouped="True"
+                         SelectionMode="None">
+            <CollectionView.GroupHeaderTemplate>
+                <DataTemplate x:DataType="vm:BrowseFolderGroup">
+                    <HorizontalStackLayout Padding="8,10,8,4" Spacing="8"
+                                           BackgroundColor="{StaticResource Surface}">
+                        <Label Text="{Binding Path}"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource Primary}"
+                               FontSize="14" />
+                        <Label Text="{Binding FileCount}"
+                               Style="{StaticResource Caption}"
+                               VerticalTextAlignment="Center" />
+                    </HorizontalStackLayout>
+                </DataTemplate>
+            </CollectionView.GroupHeaderTemplate>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:BrowseFileItem">
+                    <SwipeView>
+                        <SwipeView.RightItems>
+                            <SwipeItems>
+                                <SwipeItem Text="Download"
+                                           BackgroundColor="{StaticResource Primary}"
+                                           Command="{Binding Source={RelativeSource AncestorType={x:Type vm:BrowseViewModel}}, Path=DownloadFromBrowseCommand}"
+                                           CommandParameter="{Binding .}" />
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+                        <Grid ColumnDefinitions="*,Auto,Auto" Padding="8,4,8,4">
+                            <Label Text="{Binding Filename}" LineBreakMode="TailTruncation" />
+                            <Label Text="{Binding Size, Converter={StaticResource FileSize}}"
+                                   Style="{StaticResource Caption}"
+                                   Grid.Column="1"
+                                   Margin="8,0" />
+                            <Label Text="{Binding Bitrate, Converter={StaticResource BitrateDisplay}}"
+                                   Style="{StaticResource Caption}"
+                                   Grid.Column="2" />
+                        </Grid>
+                    </SwipeView>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Padding="32">
+                    <Label Text="Enter a username and tap Browse"
+                           Style="{StaticResource Subhead}"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="You can also tap Browse on search results"
+                           Style="{StaticResource Caption}"
+                           HorizontalTextAlignment="Center"
+                           Margin="0,8,0,0" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+    </Grid>
+
+</ContentPage>

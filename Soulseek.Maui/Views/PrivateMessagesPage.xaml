@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Soulseek.Maui.ViewModels"
+             x:Class="Soulseek.Maui.Views.PrivateMessagesPage"
+             x:DataType="vm:PrivateMessagesViewModel"
+             Title="PMs"
+             BackgroundColor="{StaticResource Background}">
+
+    <Grid ColumnDefinitions="Auto,*" Padding="0">
+
+        <!-- Conversation list -->
+        <CollectionView ItemsSource="{Binding Conversations}"
+                         SelectionMode="Single"
+                         SelectedItem="{Binding SelectedConversation}"
+                         WidthRequest="120"
+                         BackgroundColor="{StaticResource Surface}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="vm:ConversationItem">
+                    <VerticalStackLayout Padding="8,10" Spacing="2">
+                        <Label Text="{Binding Username}"
+                               FontAttributes="Bold"
+                               FontSize="13"
+                               LineBreakMode="TailTruncation" />
+                        <Label Text="{Binding LastMessage}"
+                               Style="{StaticResource Caption}"
+                               MaxLines="1"
+                               LineBreakMode="TailTruncation" />
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <Label Text="No conversations"
+                       Style="{StaticResource Caption}"
+                       HorizontalTextAlignment="Center"
+                       VerticalTextAlignment="Center"
+                       Padding="8" />
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+        <!-- Message view -->
+        <Grid Grid.Column="1" RowDefinitions="*,Auto" Padding="8" RowSpacing="8">
+            <CollectionView ItemsSource="{Binding Messages}"
+                             SelectionMode="None"
+                             ItemsUpdatingScrollMode="KeepLastItemInView">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PrivateMessageItem">
+                        <VerticalStackLayout Padding="8,4" Spacing="2"
+                                             BackgroundColor="{StaticResource Surface}"
+                                             Margin="0,2">
+                            <HorizontalStackLayout Spacing="8">
+                                <Label Text="{Binding Username}"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource Primary}"
+                                       FontSize="13" />
+                                <Label Text="{Binding Timestamp}"
+                                       Style="{StaticResource Caption}"
+                                       VerticalTextAlignment="Center" />
+                                <Label Text="You"
+                                       Style="{StaticResource Caption}"
+                                       TextColor="{StaticResource Primary}"
+                                       IsVisible="{Binding IsOutgoing}"
+                                       VerticalTextAlignment="Center" />
+                            </HorizontalStackLayout>
+                            <Label Text="{Binding Message}"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <Label Text="Select a conversation or type a username and send"
+                           Style="{StaticResource Caption}"
+                           HorizontalTextAlignment="Center"
+                           VerticalTextAlignment="Center" />
+                </CollectionView.EmptyView>
+            </CollectionView>
+
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                <Entry Placeholder="To:"
+                       Text="{Binding Recipient}"
+                       WidthRequest="90"
+                       HeightRequest="44"
+                       Grid.Column="0" />
+                <Entry Placeholder="Type a message..."
+                       Text="{Binding MessageText}"
+                       ReturnCommand="{Binding SendMessageCommand}"
+                       Grid.Column="1"
+                       HeightRequest="44" />
+                <Button Text="Send"
+                        Command="{Binding SendMessageCommand}"
+                        WidthRequest="64"
+                        HeightRequest="44"
+                        Grid.Column="2" />
+            </Grid>
+        </Grid>
+
+    </Grid>
+
+</ContentPage>
